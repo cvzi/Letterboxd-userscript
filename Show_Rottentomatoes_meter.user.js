@@ -185,11 +185,20 @@ function handleResponse(response) {
     // Sort results by closest match
     function matchQuality(title, year) {
       if(title == current.query && year == current.year) {
-        return 1000 + year;
+        return 102 + year;
       }
+      if(title == current.query && current.year) {
+        return 101 - Math.abs(year - current.year);
+      }
+      if(title.replace(/\(.+\)/, "").trim() == current.query && current.year) {
+        return 100 - Math.abs(year - current.year);
+      }   
       if(title == current.query) {
-        return 6 + year;
+        return 7;
       }
+      if(title.replace(/\(.+\)/, "").trim() == current.query) {
+        return 6;
+      } 
       if(title.startsWith(current.query)) {
         return 5;
       }
