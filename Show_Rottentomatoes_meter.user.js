@@ -2,6 +2,7 @@
 // @name        Show Rottentomatoes meter
 // @description Show Rotten Tomatoes score on imdb.com, metacritic.com, letterboxd.com, BoxOfficeMojo, serienjunkies.de, Amazon, tv.com, Google Play, allmovie.com, Wikipedia, themoviedb.org, movies.com, tvmaze.com, tvguide.com, followshows.com, thetvdb.com, tvnfo.com
 // @namespace   cuzi
+// @updateURL   https://openuserjs.org/meta/cuzi/Show_Rottentomatoes_meter.meta.js
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -12,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0
-// @version     1
+// @version     2
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -68,6 +69,7 @@
 
 var baseURL = "https://www.rottentomatoes.com"
 var baseURL_search = baseURL + "/api/private/v2.0/search/?limit=20&q={query}";
+var baseURL_openTab = baseURL + "/search/?search={query}";
 const cacheExpireAfterHours = 4;
 
 function minutesSince(time) {
@@ -107,10 +109,8 @@ function meterBar(data) {
     width = 100
   }
   
-  var html = '<div style="width:100px; overflow: hidden;height: 20px;background-color: '+bgColor+';color: ' + color + ';text-align:center; border-radius: 4px;box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">' + 
-    '<div style="width:'+ data.meterScore +'%; background-color: ' + barColor + '; color: ' + color + '; text-align:center; float:left; height: 100%;line-height: 20px;box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15);transition: width 0.6s ease;">' + textInside + '</div>' + textAfter +'</div>'; 
-    
-  return html;
+  return '<div style="width:100px; overflow: hidden;height: 20px;background-color: '+bgColor+';color: ' + color + ';text-align:center; border-radius: 4px;box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">' + 
+    '<div style="width:'+ data.meterScore +'%; background-color: ' + barColor + '; color: ' + color + '; font-size:15px; font-weight:bold; text-align:center; float:left; height: 100%;line-height: 20px;box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15);transition: width 0.6s ease;">' + textInside + '</div>' + textAfter +'</div>'; 
 }
 
 var current = {
@@ -120,51 +120,48 @@ var current = {
 };
 
 
-function showMeter(arr, time) {
-  // Show a small box in the right lower corner
-  $("#mcdiv321rotten").remove();
-  var main,div;
-  div = main = $('<div id="mcdiv321rotten"></div>').appendTo(document.body);
-  div.css({
-    position:"fixed", 
-    bottom :0, 
-    right: 0,
-    minWidth: 100,
-    maxHeight: "95%",
-    overflow: "auto",
-    backgroundColor: "#fff",
-    border: "2px solid #bbb",
-    borderRadius:" 6px",
-    boxShadow: "0 0 3px 3px rgba(100, 100, 100, 0.2)",
-    color: "#000",
-    padding:" 3px",
-    zIndex: "5010001",
-  });
+async function loadMeter(query, type, year) {
+  // Load data from rotten tomatoes search API or from cache
   
-  // First result
-  var row = $('<div><a style="font-size:small" href="' + baseURL + arr[0].url + '">' + arr[0].name + " (" + arr[0].year + ")</a>" + meterBar(arr[0]) +  '</div>').appendTo(main);
+  current.type = type;
+  current.query = query;
+  current.year = year;
   
-  // Shall the following results be collapsed by default?
-  if((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
-    var a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
-    var more = div = $("<div style=\"display:none\"></div>").appendTo(main);
+  var url = baseURL_search.replace("{query}", encodeURIComponent(query));
+  
+  var cache = JSON.parse(await GM.getValue("cache","{}"));
+  
+  // Delete cached values, that are expired
+  for(var prop in cache) {
+    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
+      delete cache[prop];
+    }
   }
   
-  // More results
-  for(var i = 1; i < arr.length; i++) {
-    var row = $('<div><a style="font-size:small" href="' + baseURL + arr[i].url + '">' +arr[i].name + " (" + arr[i].year + ")</a>" + meterBar(arr[i]) +  '</div>').appendTo(div);
-  }
-  
-  // Footer
-  var sub = $("<div></div>").appendTo(main);
-  $('<time style="color:#b6b6b6; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
-  $('<a style="color:#b6b6b6; font-size: 11px;" target="_blank" href="https://www.rottentomatoes.com" title="Open Rotten Tomatoes"> rottentomatoes.com</a>').appendTo(sub);
-  $('<span title="Hide me" style="cursor:pointer; float:right; color:#b6b6b6; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function() {
-    document.body.removeChild(this.parentNode.parentNode);
-  });
-  
-}
+  // Check cache or request new content
+  if(url in cache) {
+    // Use cached response
+    handleResponse(cache[url]);
+  } else {
+    GM.xmlHttpRequest({
+      method: "GET",
+      url: url,
+      onload: function(response) {
 
+        // Save to chache
+        response.time = (new Date()).toJSON();
+        cache[url] = response;
+        
+        GM.setValue("cache",JSON.stringify(cache));
+        
+        handleResponse(response);
+      },
+      onerror: function(response) { 
+        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
+      },
+    });
+  }
+}
 
 function handleResponse(response) {
   // Handle GM.xmlHttpRequest response
@@ -225,49 +222,57 @@ function handleResponse(response) {
 }
 
 
-async function loadMeter(query, type, year) {
-  // Load data from rotten tomatoes search API or from cache
-  
-  current.type = type;
-  current.query = query;
-  current.year = year;
-  
-  var url = baseURL_search.replace("{query}", encodeURIComponent(query));
-  
-  var cache = JSON.parse(await GM.getValue("cache","{}"));
-  
-  // Delete cached values, that are expired
-  for(var prop in cache) {
 
-    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
-      delete cache[prop];
-    }
+
+
+function showMeter(arr, time) {
+  // Show a small box in the right lower corner
+  $("#mcdiv321rotten").remove();
+  var main,div;
+  div = main = $('<div id="mcdiv321rotten"></div>').appendTo(document.body);
+  div.css({
+    position:"fixed", 
+    bottom :0, 
+    right: 0,
+    minWidth: 100,
+    maxHeight: "95%",
+    overflow: "auto",
+    backgroundColor: "#fff",
+    border: "2px solid #bbb",
+    borderRadius:" 6px",
+    boxShadow: "0 0 3px 3px rgba(100, 100, 100, 0.2)",
+    color: "#000",
+    padding:" 3px",
+    zIndex: "5010001",
+    fontFamily : "Helvetica,Arial,sans-serif"
+  });
+  
+  // First result
+  var row = $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + arr[0].name + " (" + arr[0].year + ")</a>" + meterBar(arr[0]) +  '</div>').appendTo(main);
+  
+  // Shall the following results be collapsed by default?
+  if((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
+    var a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
+    var more = div = $("<div style=\"display:none\"></div>").appendTo(main);
   }
   
-  // Check cache or request new content
-  if(url in cache) {
-    // Use cached response
-    handleResponse(cache[url]);
-  } else {
-    GM.xmlHttpRequest({
-      method: "GET",
-      url: url,
-      onload: function(response) {
-
-        // Save to chache
-        response.time = (new Date()).toJSON();
-        cache[url] = response;
-        
-        GM.setValue("cache",JSON.stringify(cache));
-        
-        handleResponse(response);
-      },
-      onerror: function(response) { 
-        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
-      },
-    });
+  // More results
+  for(var i = 1; i < arr.length; i++) {
+    var row = $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' +arr[i].name + " (" + arr[i].year + ")</a>" + meterBar(arr[i]) +  '</div>').appendTo(div);
   }
+  
+  // Footer
+  var sub = $("<div></div>").appendTo(main);
+  $('<time style="color:#b6b6b6; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
+  $('<a style="color:#b6b6b6; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace("{query}", encodeURIComponent(current.query)) + '" title="Open Rotten Tomatoes">@rottentomatoes.com</a>').appendTo(sub);
+  $('<span title="Hide me" style="cursor:pointer; float:right; color:#b6b6b6; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function() {
+    document.body.removeChild(this.parentNode.parentNode);
+  });
+  
 }
+
+
+
 
 
 var Always = () => true;
