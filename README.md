@@ -1,43 +1,30 @@
-Metacritic-userscript
+Rottentomatoes-userscript
 =====================
-A userscript or greasemonkey script that shows the metascore of movies and games from Metacritic.com on several other websites like amazon, google play and others.
+A userscript or greasemonkey script that shows the score/meter from rottentomatoes.com on several other websites like amazon, google play and others.
 
 
-[**Click here for install**](https://openuserjs.org/install/cuzi/Show_Metacritic.com_ratings.user.js) 
-Tested with Firefox/**Greasemonkey** and Chrome/**Tampermonkey**.
-
-[**Click here for Safari install**](https://openuserjs.org/install/cuzi/Show_Metacritic.com_ratings_(Safari).user.js) 
-Tested with Safari/Ninjakit and Safari/Tampermonkey
-
+[**Click here for install**](https://openuserjs.org/install/cuzi/Show_Rottentomatoes_meter.user.js) 
+Tested with Firefox/**Greasemonkey 4**
 
 Supported sites and products:
- * Bandcamp
- * Apple Itunes (only Music)
- * Amazon (only Music, Movies and TV Shows)
- * IMDb
- * Google Play (only Music and Movies)
- * TV.com
- * Steam
- * Gamespot (only PS4, XONE and PC games)
- * Rotten Tomatoes
- * Serienjunkies
+ * imdb.com
+ * metacritic.com
+ * letterboxd.com
  * BoxOfficeMojo
+ * serienjunkies.de
+ * Amazon
+ * tv.com
+ * Google Play
  * allmovie.com
- * movie.com
- * Wikipedia (en)
+ * Wikipedia
  * themoviedb.org
- * letterboxd
- * TVmaze 
- * TVGuide
+ * movies.com
+ * tvmaze.com
+ * tvguide.com
  * followshows.com
- * TheTVDB
- * ConsequenceOfSound
- * Pitchfork
- * Last.fm
- * TVNfo
- * rateyourmusic.com
+ * thetvdb.com
+ * tvnfo.com
 
 Screenshot:
-![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Metacritic-userscript/master/screenshot_amazon.jpg)
+![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Rottentomatoes-userscript/master/screenshot_amazon.jpg)
 
-If no matching entry on Metacritic.com is found, you can type **meta** and a search field will appear in the lower left corner. 
