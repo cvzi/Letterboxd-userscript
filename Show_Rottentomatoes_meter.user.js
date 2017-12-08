@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0
-// @version     2
+// @version     3
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -499,7 +499,7 @@ var sites = {
     products : [{
       condition : Always,
       type : "movie",
-      data : () => unsafeWindow.filmData.name
+      data : () => [unsafeWindow.filmData.name, unsafeWindow.filmData.releaseYear]
     }]
   },
   'TVmaze' : {
