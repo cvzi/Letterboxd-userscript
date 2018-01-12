@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0
-// @version     3
+// @version     4
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -71,36 +71,43 @@ var baseURL = "https://www.rottentomatoes.com"
 var baseURL_search = baseURL + "/api/private/v2.0/search/?limit=20&q={query}";
 var baseURL_openTab = baseURL + "/search/?search={query}";
 const cacheExpireAfterHours = 4;
+const emoji_tomato = 0x1F345;
+const emoji_green_apple = 0x1F34F;
+const emoji_strawberry = 0x1F353;
 
 function minutesSince(time) {
-  var seconds = ((new Date()).getTime() - time.getTime()) / 1000;
+  let seconds = ((new Date()).getTime() - time.getTime()) / 1000;
   return seconds>60?parseInt(seconds/60)+" min ago":"now";
 }
 
 function meterBar(data) {
   // Create the "progress" bar with the meter score
-  var barColor = "grey";
-  var bgColor = "#ECE4B5";
-  var color = "black";
-  var width = 0;
-  var textInside = "";
-  var textAfter = "";
+  let barColor = "grey";
+  let bgColor = "#ECE4B5";
+  let color = "black";
+  let width = 0;
+  let textInside = "";
+  let textAfter = "";
   
   if (data.meterClass == "certified_fresh") {
     barColor = "#C91B22";
     color = "yellow";
-    textInside = data.meterScore + "%"
+    textInside = String.fromCodePoint(emoji_strawberry) + " " + data.meterScore + "%"
     width = data.meterScore;
-  }
-  else if (data.meterClass == "fresh") {
+  } else if (data.meterClass == "fresh") {
     barColor = "#C91B22";
     color = "white";
-    textInside = data.meterScore + "%"
+    textInside = String.fromCodePoint(emoji_tomato) + " " + data.meterScore + "%"
     width = data.meterScore;
   } else if(data.meterClass == "rotten") {
     color = "gray";
     barColor = "#94B13C";
-    textAfter = data.meterScore + "%"
+    if(data.meterScore > 30) {
+      textAfter = data.meterScore + "% ";
+      textInside = '<span style="font-size:13px">' + String.fromCodePoint(emoji_green_apple) + "</span>";
+    } else {
+      textAfter = data.meterScore + '% <span style="font-size:13px">' + String.fromCodePoint(emoji_green_apple) + "</span>";
+    }
     width = data.meterScore;
   } else {
     bgColor = barColor = "#787878";
@@ -110,7 +117,7 @@ function meterBar(data) {
   }
   
   return '<div style="width:100px; overflow: hidden;height: 20px;background-color: '+bgColor+';color: ' + color + ';text-align:center; border-radius: 4px;box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">' + 
-    '<div style="width:'+ data.meterScore +'%; background-color: ' + barColor + '; color: ' + color + '; font-size:15px; font-weight:bold; text-align:center; float:left; height: 100%;line-height: 20px;box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15);transition: width 0.6s ease;">' + textInside + '</div>' + textAfter +'</div>'; 
+    '<div style="width:'+ data.meterScore +'%; background-color: ' + barColor + '; color: ' + color + '; font-size:14px; font-weight:bold; text-align:center; float:left; height: 100%;line-height: 20px;box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15);transition: width 0.6s ease;">' + textInside + '</div>' + textAfter +'</div>'; 
 }
 
 var current = {
@@ -127,9 +134,9 @@ async function loadMeter(query, type, year) {
   current.query = query;
   current.year = year;
   
-  var url = baseURL_search.replace("{query}", encodeURIComponent(query));
+  let url = baseURL_search.replace("{query}", encodeURIComponent(query));
   
-  var cache = JSON.parse(await GM.getValue("cache","{}"));
+  let cache = JSON.parse(await GM.getValue("cache","{}"));
   
   // Delete cached values, that are expired
   for(var prop in cache) {
@@ -166,16 +173,16 @@ async function loadMeter(query, type, year) {
 function handleResponse(response) {
   // Handle GM.xmlHttpRequest response
   
-  var data = JSON.parse(response.responseText);
+  let data = JSON.parse(response.responseText);
   
   // Adapt type name from original metacritic type to rotten tomatoes type
-  var prop;
+  let prop;
   if(current.type == "movie") {
     prop = "movies";
   } else {
     prop = "tvSeries";
     // Align series info with movie info
-    for(var i = 0; i < data[prop].length; i++) {
+    for(let i = 0; i < data[prop].length; i++) {
       data[prop][i]["name"] = data[prop][i]["title"];
       data[prop][i]["year"] = data[prop][i]["startYear"];
     }
@@ -237,7 +244,7 @@ function handleResponse(response) {
 function showMeter(arr, time) {
   // Show a small box in the right lower corner
   $("#mcdiv321rotten").remove();
-  var main,div;
+  let main,div;
   div = main = $('<div id="mcdiv321rotten"></div>').appendTo(document.body);
   div.css({
     position:"fixed", 
@@ -257,21 +264,21 @@ function showMeter(arr, time) {
   });
   
   // First result
-  var row = $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + arr[0].name + " (" + arr[0].year + ")</a>" + meterBar(arr[0]) +  '</div>').appendTo(main);
+  $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + arr[0].name + " (" + arr[0].year + ")</a>" + meterBar(arr[0]) +  '</div>').appendTo(main);
   
   // Shall the following results be collapsed by default?
   if((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
-    var a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
-    var more = div = $("<div style=\"display:none\"></div>").appendTo(main);
+    let a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
+    let more = div = $("<div style=\"display:none\"></div>").appendTo(main);
   }
   
   // More results
-  for(var i = 1; i < arr.length; i++) {
-    var row = $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' +arr[i].name + " (" + arr[i].year + ")</a>" + meterBar(arr[i]) +  '</div>').appendTo(div);
+  for(let i = 1; i < arr.length; i++) {
+    $('<div><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' +arr[i].name + " (" + arr[i].year + ")</a>" + meterBar(arr[i]) +  '</div>').appendTo(div);
   }
   
   // Footer
-  var sub = $("<div></div>").appendTo(main);
+  let sub = $("<div></div>").appendTo(main);
   $('<time style="color:#b6b6b6; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
   $('<a style="color:#b6b6b6; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace("{query}", encodeURIComponent(current.query)) + '" title="Open Rotten Tomatoes">@rottentomatoes.com</a>').appendTo(sub);
   $('<span title="Hide me" style="cursor:pointer; float:right; color:#b6b6b6; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function() {
@@ -303,7 +310,7 @@ var sites = {
     products : [
     {
       condition : function() { 
-        var e = document.querySelector("meta[property='og:type']");
+        let e = document.querySelector("meta[property='og:type']");
         if(e) {
           return e.content == "video.movie"
         }
