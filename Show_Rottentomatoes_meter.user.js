@@ -12,8 +12,8 @@
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
-// @license     GPL-3.0
-// @version     4
+// @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
+// @version     5
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -322,8 +322,15 @@ var sites = {
         if(document.querySelector("#titleYear")) {
           year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
         }
-        
-        if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
+        if(document.querySelector('script[type="application/ld+json"]')) {
+          var jsonld = JSON.parse(document.querySelector('script[type="application/ld+json"]').innerText);
+          try {
+            if(year == null) {
+              year = parseInt(jsonld["datePublished"].match(/\d{4}/)[0]);
+            }
+          } catch(e) {}
+          return [jsonld["name"], year] 
+        } else if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
           return [document.querySelector("h1[itemprop=name]").firstChild.textContent.trim(), year];
         } else if(document.querySelector("*[itemprop=name] a") && document.querySelector("*[itemprop=name] a").firstChild.data) { // Subpage of a move
           return [document.querySelector("*[itemprop=name] a").firstChild.data.trim(), year];
@@ -345,11 +352,20 @@ var sites = {
       type : "tv",
       data : function() {
         var year = null;
-        var m = document.title.match(/\s(\d{4})(\S\d{4}?)?/);
-        if(m) {
-          year = parseInt(m[1]);
-        }
-        return [document.querySelector("*[itemprop=name]").textContent ,year]
+        if(document.querySelector("*[itemprop=name]")) {
+          var m = document.title.match(/\s(\d{4})(\S\d{4}?)?/);
+          if(m) {
+            year = parseInt(m[1]);
+          }
+          return [document.querySelector("*[itemprop=name]").textContent ,year]
+        } else {
+          var jsonld = JSON.parse(document.querySelector('script[type="application/ld+json"]').innerText);
+          try {
+            year = parseInt(jsonld["datePublished"].match(/\d{4}/)[0]);
+          } catch(e) {}
+          return [jsonld["name"], year] 
+        } 
+
       }
     }
     ]
