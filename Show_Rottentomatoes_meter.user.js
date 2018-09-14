@@ -10,10 +10,10 @@
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
-// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js
+// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     5
+// @version     6
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -44,6 +44,7 @@
 // @include     https://www.serienjunkies.de/*
 // @include     http://www.tv.com/shows/*
 // @include     http://www.boxofficemojo.com/movies/*
+// @include     https://www.boxofficemojo.com/movies/*
 // @include     http://www.allmovie.com/movie/*
 // @include     https://www.allmovie.com/movie/*
 // @include     https://en.wikipedia.org/*
@@ -61,9 +62,13 @@
 // @include     https://thetvdb.com/*tab=series*
 // @include     http://www.thetvdb.com/*tab=series*
 // @include     https://www.thetvdb.com/*tab=series*
+// @include     https://www.thetvdb.com/series/*
 // @include     http://tvnfo.com/s/*
+// @include     https://tvnfo.com/s/*
 // @include     http://www.metacritic.com/movie/*
+// @include     https://www.metacritic.com/movie/*
 // @include     http://www.metacritic.com/tv/*
+// @include     https://www.metacritic.com/tv/*
 // ==/UserScript==
 
 
@@ -78,6 +83,45 @@ const emoji_strawberry = 0x1F353;
 function minutesSince(time) {
   let seconds = ((new Date()).getTime() - time.getTime()) / 1000;
   return seconds>60?parseInt(seconds/60)+" min ago":"now";
+}
+
+function parseLDJSON(condition, keys) {
+  if(document.querySelector('script[type="application/ld+json"]')) {
+    var data = [];
+    var scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for(let i = 0; i < scripts.length; i++) {
+      try {
+        var jsonld = JSON.parse(scripts[i].innerText);
+      } catch(e) {
+        continue;
+      }
+      if(jsonld) {
+        if(Array.isArray(jsonld)) {
+          data.push(...jsonld)
+        } else {
+          data.push(jsonld);
+        }
+      }
+    }
+    for(let i = 0; i < data.length; i++) {
+      try {
+        if(data[i] && data[i] && condition(data[i])) {
+          if(Array.isArray(keys)) {
+            let r = [];
+            for(let j = 0; j < keys.length; j++) {
+              r.push(data[i][keys[j]]);
+            }
+            return r;
+          } else {
+            return data[i][keys];
+          }
+        }
+      } catch(e) {
+        continue;
+      }
+    }
+  }
+  return null;
 }
 
 function meterBar(data) {
@@ -318,7 +362,7 @@ var sites = {
       },
       type : "movie",
       data : function() {
-        var year = null
+        var year = null;
         if(document.querySelector("#titleYear")) {
           year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
         }
@@ -420,17 +464,7 @@ var sites = {
     products : [{
       condition : () =>  Always,
       type : "tv",
-      data : function() {
-        if(document.querySelector("h1[itemprop=name]")) {
-          return document.querySelector("h1[itemprop=name]").textContent;
-        } else {
-          var n = $("a:contains(Details zur)");
-          if(n) {
-            var name = n.text().match(/Details zur Produktion der Serie (.+)/)[1];
-            return name;
-          }
-        }
-      }
+      data : () => parseLDJSON((j) => (j["@type"] == "TVSeries"), "name")
     }]
   },
   'amazon' : {
@@ -455,7 +489,19 @@ var sites = {
     products : [{
       condition : () => document.querySelector("#body table:nth-child(2) tr:first-child b"),
       type : "movie",
-      data : () => document.querySelector("#body table:nth-child(2) tr:first-child b").firstChild.data
+      data : function() {
+        var year = null;
+        try {
+        var tds = document.querySelectorAll("#body table:nth-child(2) tr:first-child table table table td");
+        for(var i = 0; i< tds.length; i++) { 
+          if(~tds[i].innerText.indexOf("Release Date")) {
+            year = parseInt(tds[i].innerText.match(/\d{4}/)[0]);
+            break;
+          }
+        }
+        } catch(e) { }
+        return [document.querySelector("#body table:nth-child(2) tr:first-child b").firstChild.data, year];
+      }
     }]
   },
   'AllMovie' : {
@@ -508,7 +554,14 @@ var sites = {
     products : [{
       condition : () => document.querySelector("meta[property='og:type']").content == "movie",
       type : "movie",
-      data : () => document.querySelector("meta[property='og:title']").content
+      data : function() {
+        var year = null;
+        try {
+          year = parseInt(document.querySelector(".release_date").innerText.match(/\d{4}/)[0]);
+        } catch(e) {}
+        
+        return [document.querySelector("meta[property='og:title']").content, year]
+      }
     },
     {
       condition : () => document.querySelector("meta[property='og:type']").content == "tv_series",
@@ -540,7 +593,13 @@ var sites = {
     products : [{
       condition : () => document.location.pathname.startsWith("/tvshows/"),
       type : "tv",
-      data : () => document.querySelector("meta[property='og:title']").content
+      data : function() {
+        if(document.querySelector("meta[itemprop=name]")) {
+          return document.querySelector("meta[itemprop=name]").content;
+        } else {
+          return document.querySelector("meta[property='og:title']").content.split("|")[0];
+        }
+      }
     }]
   },
   'followshows' : {
@@ -556,9 +615,9 @@ var sites = {
     host : ["thetvdb.com"],
     condition : Always,
     products : [{
-      condition : () => ~document.location.search.indexOf("tab=series"),
+      condition : () => document.location.pathname.startsWith("/series/") || ~document.location.search.indexOf("tab=series"),
       type : "tv",
-      data : () => document.querySelector("#content h1").firstChild.data
+      data : () => document.getElementById("series_title").firstChild.data.trim()
     }]
   },
   'TVNfo' : {
