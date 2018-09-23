@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     7
+// @version     8
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -86,7 +86,7 @@ function minutesSince(time) {
   return seconds>60?parseInt(seconds/60)+" min ago":"now";
 }
 
-function parseLDJSON(condition, keys) {
+function parseLDJSON(keys, condition) {
   if(document.querySelector('script[type="application/ld+json"]')) {
     var data = [];
     var scripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -106,21 +106,24 @@ function parseLDJSON(condition, keys) {
     }
     for(let i = 0; i < data.length; i++) {
       try {
-        if(data[i] && data[i] && condition(data[i])) {
+        if(data[i] && data[i] && (typeof condition != 'function' || condition(data[i]))) {
           if(Array.isArray(keys)) {
             let r = [];
             for(let j = 0; j < keys.length; j++) {
               r.push(data[i][keys[j]]);
             }
             return r;
-          } else {
+          } else if(keys) {
             return data[i][keys];
+          } else if(typeof condition === 'function') {
+            return data[i]; // Return whole object
           }
         }
       } catch(e) {
         continue;
       }
     }
+    return data;
   }
   return null;
 }
@@ -364,17 +367,20 @@ var sites = {
       type : "movie",
       data : function() {
         var year = null;
+        var name = null;
+        var jsonld = null;
         if(document.querySelector("#titleYear")) {
           year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
         }
         if(document.querySelector('script[type="application/ld+json"]')) {
-          var jsonld = JSON.parse(document.querySelector('script[type="application/ld+json"]').innerText);
-          try {
-            if(year == null) {
-              year = parseInt(jsonld["datePublished"].match(/\d{4}/)[0]);
-            }
-          } catch(e) {}
-          return [jsonld["name"], year] 
+           jsonld = parseLDJSON(["name", "datePublished"]);
+           name = jsonld[0];
+           year = parseInt(jsonld[1].match(/\d{4}/)[0]);
+        }
+        if(document.querySelector(".originalTitle") && document.querySelector(".title_wrapper h1")) {
+           return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use English title
+        } else if(jsonld) { 
+          return [name, year]; // Use original title 
         } else if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
           return [document.querySelector("h1[itemprop=name]").firstChild.textContent.trim(), year];
         } else if(document.querySelector("*[itemprop=name] a") && document.querySelector("*[itemprop=name] a").firstChild.data) { // Subpage of a move
@@ -465,7 +471,7 @@ var sites = {
     products : [{
       condition : () =>  Always,
       type : "tv",
-      data : () => parseLDJSON((j) => (j["@type"] == "TVSeries"), "name")
+      data : () => parseLDJSON("name", (j) => (j["@type"] == "TVSeries"))
     }]
   },
   'amazon' : {
