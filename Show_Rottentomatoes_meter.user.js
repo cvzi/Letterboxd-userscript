@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     6
+// @version     7
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -69,6 +69,7 @@
 // @include     https://www.metacritic.com/movie/*
 // @include     http://www.metacritic.com/tv/*
 // @include     https://www.metacritic.com/tv/*
+// @include     https://www.nme.com/reviews/movie/*
 // ==/UserScript==
 
 
@@ -628,7 +629,28 @@ var sites = {
       type : "tv",
       data : () => document.querySelector(".heading h1").textContent.trim()
     }]
-  }
+  },
+  'nme' : {
+    host : ["nme.com"],
+    condition : () => document.location.pathname.startsWith("/reviews/"),
+    products : [    {
+      condition : () => document.location.pathname.startsWith("/reviews/movie/"),
+      type : "movie",
+      data : function() {
+        var year = null;
+        try {
+          year = parseInt(document.querySelector("*[itemprop=datePublished]").content.match(/\d{4}/)[0])
+        } catch(e) {}
+        
+        try {
+          return [ document.querySelector(".title-primary").textContent.match(/‘(.+?)’/)[1] , year ];
+        } catch(e) {
+          return [ document.querySelector("h1").textContent.match(/:\s*(.+)/)[1].trim() , year ];
+        }
+      }
+    }]
+  },
+  
 };
 
 
