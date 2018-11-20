@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     9
+// @version     10
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -202,10 +202,20 @@ async function loadMeter(query, type, year) {
       method: "GET",
       url: url,
       onload: function(response) {
-
         // Save to chache
+        
         response.time = (new Date()).toJSON();
-        cache[url] = response;
+        
+        // Chrome fix: Otherwise JSON.stringify(cache) omits responseText
+        var newobj = {};
+        for(var key in response) {
+          newobj[key] = response[key];
+        }
+        newobj.responseText = response.responseText;
+        
+        
+        cache[url] = newobj;
+
         
         GM.setValue("cache",JSON.stringify(cache));
         
