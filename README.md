@@ -6,6 +6,9 @@ A userscript or greasemonkey script that shows the score/meter from rottentomato
 [**Click here for install**](https://openuserjs.org/install/cuzi/Show_Rottentomatoes_meter.user.js) 
 Tested with Firefox/**Greasemonkey 4**
 
+I develop a similar script for the [Metacritic](https://www.metacritic.com/) score, see [cvzi/Metacritic-userscript](https://github.com/cvzi/Metacritic-userscript/)
+
+
 Supported sites and products:
  * imdb.com
  * metacritic.com
