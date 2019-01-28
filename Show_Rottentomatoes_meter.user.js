@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     10
+// @version     11
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -70,6 +70,8 @@
 // @include     http://www.metacritic.com/tv/*
 // @include     https://www.metacritic.com/tv/*
 // @include     https://www.nme.com/reviews/movie/*
+// @include     https://itunes.apple.com/*/movie/*
+// @include     https://itunes.apple.com/*/tv-season/*
 // ==/UserScript==
 
 
@@ -663,6 +665,26 @@ var sites = {
         } catch(e) {
           return [ document.querySelector("h1").textContent.match(/:\s*(.+)/)[1].trim() , year ];
         }
+      }
+    }]
+  },
+  'itunes' : {
+    host : ["itunes.apple.com"],
+    condition : Always,
+    products : [{
+      condition : () => ~document.location.href.indexOf("/movie/"),
+      type : "movie",
+      data : () => parseLDJSON("name", (j) => (j["@type"] == "Movie"))
+    },
+    {
+      condition : () => ~document.location.href.indexOf("/tv-season/"),
+      type : "tv",
+      data : function() {
+        var name = parseLDJSON("name", (j) => (j["@type"] == "TVSeries"));
+        if(~name.indexOf(", Season")) {
+          name = name.split(", Season")[0];
+        }
+        return name;
       }
     }]
   },
