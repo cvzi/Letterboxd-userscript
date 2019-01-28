@@ -28,7 +28,8 @@ Supported sites and products:
  * thetvdb.com
  * tvnfo.com
  * nme.com - New Musical Express
-
+ * itunes.apple.com
+ 
 Screenshot:
 ![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Rottentomatoes-userscript/master/screenshot_amazon.jpg)
 
