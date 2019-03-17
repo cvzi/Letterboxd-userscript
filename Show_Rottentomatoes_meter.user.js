@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     11
+// @version     12
 // @connect     www.rottentomatoes.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -491,14 +491,14 @@ var sites = {
     condition : Always,
     products : [
     {
-      condition : () => (document.getElementById("aiv-content-title") && document.getElementsByClassName("season-single-dark").length),
+      condition : () => (document.querySelector('[data-automation-id=title]') && (document.getElementsByClassName("av-season-single").length || document.querySelector('[data-automation-id="num-of-seasons-badge"]'))),
       type : "tv",
-      data : () => document.getElementById("aiv-content-title").firstChild.data.trim()
+      data : () => document.querySelector('[data-automation-id=title]').textContent.trim()
     },
     {
-      condition : () => document.getElementById("aiv-content-title"),
+      condition : () => document.querySelector('[data-automation-id=title]'),
       type : "movie",
-      data : () => document.getElementById("aiv-content-title").firstChild.data.trim()
+      data : () => document.querySelector('[data-automation-id=title]').textContent.trim()
     }
     ]
   },
@@ -583,7 +583,7 @@ var sites = {
       }
     },
     {
-      condition : () => document.querySelector("meta[property='og:type']").content == "tv_series",
+      condition : () => document.querySelector("meta[property='og:type']").content == "tv" || document.querySelector("meta[property='og:type']").content == "tv_series",
       type : "tv",
       data : () => document.querySelector("meta[property='og:title']").content
     }]
