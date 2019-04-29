@@ -29,7 +29,9 @@ Supported sites and products:
  * tvnfo.com
  * nme.com - New Musical Express
  * itunes.apple.com
- 
+ * epguides.com
+ * ShareTV
+
 Screenshot:
 ![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Rottentomatoes-userscript/master/screenshot_amazon.jpg)
 
