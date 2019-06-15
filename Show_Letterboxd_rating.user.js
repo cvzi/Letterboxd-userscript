@@ -355,7 +355,7 @@ function showMovieList(arr, time) {
   }
 
   // First result
-  let first = $('<div style=""><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + arr[0].name + (arr[0].originalTitle?' ['+arr[0].originalTitle+']':'') +  " (" + arr[0].releaseYear + ")</a></div>").click(selectMovie).appendTo(main);
+  let first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle?' ['+arr[0].originalTitle+']':'') + (arr[0].releaseYear?" (" + arr[0].releaseYear + ")":"") + "</div></a></div>").click(selectMovie).appendTo(main);
   first[0].dataset["movie"] = JSON.stringify(arr[0])
 
   // Shall the following results be collapsed by default?
@@ -366,7 +366,7 @@ function showMovieList(arr, time) {
 
   // More results
   for(let i = 1; i < arr.length; i++) {
-    let entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + arr[i].name + (arr[i].originalTitle?' ['+arr[i].originalTitle+']':'') + " (" + arr[i].releaseYear + ")</a></div>").click(selectMovie).appendTo(div);
+    let entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle?' ['+arr[i].originalTitle+']':'') + (arr[0].releaseYear?" (" + arr[0].releaseYear + ")":"") + "</div></a></div>").click(selectMovie).appendTo(div);
     entry[0].dataset["movie"] = JSON.stringify(arr[i])
   }
 
