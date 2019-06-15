@@ -24,4 +24,4 @@ Supported sites and products:
  * itunes.apple.com
 
 Screenshot:
-![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Letterboxd-userscript/master/screenshot_amazon.jpg)
+![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Letterboxd-userscript/master/screenshot_amazon.png)
