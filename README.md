@@ -4,7 +4,7 @@ A userscript or greasemonkey script that shows the rating from letterboxd.com on
 
 
 [**Click here for install**](https://openuserjs.org/install/cuzi/Show_Letterboxd_rating.user.js)  
-Tested with Firefox/**Greasemonkey 4**.
+Tested with Firefox/**Greasemonkey 4** and Chrome/**Tampermonkey**.
 
 I develop similar scripts for the [Metacritic](https://www.metacritic.com/) score, see [cvzi/Metacritic-userscript](https://github.com/cvzi/Metacritic-userscript/)  
 and for the [Rotten Tomatoes](https://www.rottentomatoes.com/) score, see [cvzi/Rottentomatoes-userscript](https://github.com/cvzi/Rottentomatoes-userscript)

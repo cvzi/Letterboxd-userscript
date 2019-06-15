@@ -391,9 +391,6 @@ function selectMovie(ev) {
   addToWhiteList(data.url)
 }
 
-
-// TODO change background if not visible?
-
 async function loadMovieRating(data) {
   // Load page from letterboxd
 
