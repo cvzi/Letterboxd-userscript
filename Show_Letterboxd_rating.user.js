@@ -1,0 +1,944 @@
+// ==UserScript==
+// @name        Show Letterboxd rating
+// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, movies.com
+// @namespace   cuzi
+// @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
+// @grant       GM_xmlhttpRequest
+// @grant       GM_setValue
+// @grant       GM_getValue
+// @grant       unsafeWindow
+// @grant       GM.xmlHttpRequest
+// @grant       GM.setValue
+// @grant       GM.getValue
+// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js
+// @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
+// @version     1
+// @connect     letterboxd.com
+// @include     https://play.google.com/store/movies/details/*
+// @include     http://www.amazon.com/*
+// @include     https://www.amazon.com/*
+// @include     http://www.amazon.co.uk/*
+// @include     https://www.amazon.co.uk/*
+// @include     http://www.amazon.fr/*
+// @include     https://www.amazon.fr/*
+// @include     http://www.amazon.de/*
+// @include     https://www.amazon.de/*
+// @include     http://www.amazon.es/*
+// @include     https://www.amazon.es/*
+// @include     http://www.amazon.ca/*
+// @include     https://www.amazon.ca/*
+// @include     http://www.amazon.in/*
+// @include     https://www.amazon.in/*
+// @include     http://www.amazon.it/*
+// @include     https://www.amazon.it/*
+// @include     http://www.amazon.co.jp/*
+// @include     https://www.amazon.co.jp/*
+// @include     http://www.amazon.com.mx/*
+// @include     https://www.amazon.com.mx/*
+// @include     http://www.amazon.com.au/*
+// @include     https://www.amazon.com.au/*
+// @include     http://www.imdb.com/title/*
+// @include     https://www.imdb.com/title/*
+// @include     http://www.serienjunkies.de/*
+// @include     https://www.serienjunkies.de/*
+// @include     http://www.boxofficemojo.com/movies/*
+// @include     https://www.boxofficemojo.com/movies/*
+// @include     http://www.allmovie.com/movie/*
+// @include     https://www.allmovie.com/movie/*
+// @include     https://en.wikipedia.org/*
+// @include     http://www.movies.com/*/m*
+// @include     https://www.themoviedb.org/movie/*
+// @include     http://www.rottentomatoes.com/m/*
+// @include     https://www.rottentomatoes.com/m/*
+// @include     http://www.metacritic.com/movie/*
+// @include     https://www.metacritic.com/movie/*
+// @include     https://www.nme.com/reviews/movie/*
+// @include     https://itunes.apple.com/*/movie/*
+// ==/UserScript==
+
+
+var baseURL = "https://letterboxd.com"
+var baseURL_search = baseURL + "/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}"
+var baseURL_openTab = baseURL + "/search/{query}/";
+var baseURL_ratingHistogram = baseURL + "/csi{url}rating-histogram/";
+
+const cacheExpireAfterHours = 4;
+
+function minutesSince(time) {
+  let seconds = ((new Date()).getTime() - time.getTime()) / 1000;
+  return seconds>60?parseInt(seconds/60)+" min ago":"now";
+}
+
+function fixLetterboxdURLs(html) {
+  return html.replace(/<a /g,'<a target="_blank" ').replace(/href="\//g,'href="'+baseURL+"/").replace(/src="\//g,'src="'+baseURL+"/");
+}
+
+function filterUniversalUrl(url) {
+  try {
+    url = url.match(/http.+/)[0];
+  } catch(e) { }
+
+  try {
+    url = url.replace(/https?:\/\/(www.)?/,"");
+  } catch(e) { }
+
+  if(url.startsWith("imdb.com/") && url.match(/(imdb\.com\/\w+\/\w+\/)/)) {
+     // Remove movie subpage from imdb url
+     return url.match(/(imdb\.com\/\w+\/\w+\/)/)[1];
+  } else if(url.startsWith("thetvdb.com/")) {
+     // Do nothing with thetvdb.com urls
+     return url;
+  } else if(url.startsWith("boxofficemojo.com/")) {
+     // Keep the important id= on
+     try {
+       var parts = url.split("?");
+       var page = url[0] + "?";
+       var idparam = url[1].match(/(id=.+?)(\.|&)/)[1];
+       return page+idparam;
+     } catch(e) {
+       return url;
+     }
+  } else {
+    // Default: Remove parameters
+    return url.split("?")[0].split("&")[0];
+  }
+}
+
+function parseLDJSON(keys, condition) {
+  if(document.querySelector('script[type="application/ld+json"]')) {
+    var data = [];
+    var scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for(let i = 0; i < scripts.length; i++) {
+      try {
+        var jsonld = JSON.parse(scripts[i].innerText);
+      } catch(e) {
+        continue;
+      }
+      if(jsonld) {
+        if(Array.isArray(jsonld)) {
+          data.push(...jsonld)
+        } else {
+          data.push(jsonld);
+        }
+      }
+    }
+    for(let i = 0; i < data.length; i++) {
+      try {
+        if(data[i] && data[i] && (typeof condition != 'function' || condition(data[i]))) {
+          if(Array.isArray(keys)) {
+            let r = [];
+            for(let j = 0; j < keys.length; j++) {
+              r.push(data[i][keys[j]]);
+            }
+            return r;
+          } else if(keys) {
+            return data[i][keys];
+          } else if(typeof condition === 'function') {
+            return data[i]; // Return whole object
+          }
+        }
+      } catch(e) {
+        continue;
+      }
+    }
+    return data;
+  }
+  return null;
+}
+
+async function addToWhiteList(letterboxdUrl) {
+  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
+  const docUrl = filterUniversalUrl(document.location.href)
+  whitelist[docUrl] = letterboxdUrl
+  await GM.setValue("whitelist", JSON.stringify(whitelist));
+}
+
+async function removeFromWhiteList() {
+  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
+  const docUrl = filterUniversalUrl(document.location.href)
+  if(docUrl in whitelist) {
+    delete whitelist[docUrl]
+    await GM.setValue("whitelist", JSON.stringify(whitelist));
+  }
+}
+
+var current = {
+  type : null,
+  query : null,
+  year : null
+};
+
+
+async function searchMovie(query, type, year, forceList) {
+  // Load data from letterboxd search API or from cache
+
+  current.type = type;
+  current.query = query;
+  current.year = year;
+  
+  
+  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
+
+  if(forceList) {
+    whitelist = {}
+  }
+
+  const docUrl = filterUniversalUrl(document.location.href)
+  if(docUrl in whitelist) {
+    return loadMovieRating({'url' : whitelist[docUrl]})
+  }
+
+  const url = baseURL_search.replace("{query}", encodeURIComponent(query)).replace("{timestamp}", encodeURIComponent(Date.now()));
+
+  let cache = JSON.parse(await GM.getValue("cache","{}"));
+
+  // Delete cached values, that are expired
+  for(var prop in cache) {
+    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
+      delete cache[prop];
+    }
+  }
+
+  // Check cache or request new content
+  if(url in cache) {
+    // Use cached response
+    handleSearchResponse(cache[url], forceList);
+  } else {
+    GM.xmlHttpRequest({
+      method: "GET",
+      url: url,
+      onload: function(response) {
+        // Save to chache
+
+        response.time = (new Date()).toJSON();
+
+        // Chrome fix: Otherwise JSON.stringify(cache) omits responseText
+        var newobj = {};
+        for(var key in response) {
+          newobj[key] = response[key];
+        }
+        newobj.responseText = response.responseText;
+
+
+        cache[url] = newobj;
+
+
+        GM.setValue("cache",JSON.stringify(cache));
+
+        handleSearchResponse(response, forceList);
+      },
+      onerror: function(response) {
+        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
+      },
+    });
+  }
+}
+
+function handleSearchResponse(response, forceList) {
+  // Handle GM.xmlHttpRequest response
+
+  let result = JSON.parse(response.responseText);
+  
+  if(forceList && (result.result == false || !result.data)) {
+    alert("No results for "+current.query);
+  } else if(result.result == false || !result.data) {
+    console.log("No results for "+current.query);
+  } else if(!forceList && result.data.length == 1) {
+    loadMovieRating(result.data[0]);
+  } else {
+    // Sort results by closest match
+    function matchQuality(title, year, originalTitle) {
+      if(title == current.query && year == current.year) {
+        return 105 + year;
+      }
+      if(originalTitle && originalTitle == current.query && year == current.year) {
+        return 104 + year;
+      }
+      if(title == current.query && current.year) {
+        return 103 - Math.abs(year - current.year);
+      }
+      if(originalTitle && originalTitle == current.query && current.year) {
+        return 102 - Math.abs(year - current.year);
+      }
+      if(title.replace(/\(.+\)/, "").trim() == current.query && current.year) {
+        return 101 - Math.abs(year - current.year);
+      }
+      if(originalTitle && originalTitle.replace(/\(.+\)/, "").trim() == current.query && current.year) {
+        return 100 - Math.abs(year - current.year);
+      }
+      if(title == current.query) {
+        return 12;
+      }
+      if(originalTitle && originalTitle == current.query) {
+        return 11;
+      }
+      if(title.replace(/\(.+\)/, "").trim() == current.query) {
+        return 10;
+      }
+      if(originalTitle && originalTitle.replace(/\(.+\)/, "").trim() == current.query) {
+        return 9;
+      }
+      if(title.startsWith(current.query)) {
+        return 8;
+      }
+      if(originalTitle && originalTitle.startsWith(current.query)) {
+        return 7;
+      }
+      if(current.query.indexOf(title) != -1) {
+        return 6;
+      }
+      if(originalTitle && current.query.indexOf(originalTitle) != -1) {
+        return 5;
+      }
+      if(title.indexOf(current.query) != -1) {
+        return 4;
+      }
+      if(originalTitle && originalTitle.indexOf(current.query) != -1) {
+        return 3;
+      }
+      if(current.query.toLowerCase().indexOf(title.toLowerCase()) != -1) {
+        return 2;
+      }
+      if(title.toLowerCase().indexOf(current.query.toLowerCase()) != -1) {
+        return 1;
+      }
+      return 0;
+    }
+
+    result.data.sort(function(a,b) {
+      if(!a.hasOwnProperty('matchQuality')) {
+        a.matchQuality = matchQuality(a.name, a.releaseYear, a.originalName);
+      }
+      if(!b.hasOwnProperty('matchQuality')) {
+        b.matchQuality = matchQuality(b.name, b.releaseYear, b.originalName);
+      }
+
+      return b.matchQuality - a.matchQuality;
+    });
+
+    showMovieList(result.data, new Date(response.time));
+  }
+}
+
+
+function showMovieList(arr, time) {
+  // Show a small box in the right lower corner
+  $("#mcdiv321letterboxd").remove();
+  let main,div;
+  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body);
+  div.css({
+    position:"fixed",
+    bottom :0,
+    right: 0,
+    minWidth: 100,
+    maxHeight: "95%",
+    overflow: "auto",
+    backgroundColor: "#fff",
+    border: "2px solid #bbb",
+    borderRadius:" 6px",
+    boxShadow: "0 0 3px 3px rgba(100, 100, 100, 0.2)",
+    color: "#000",
+    padding:" 3px",
+    zIndex: "5010001",
+    fontFamily : "Helvetica,Arial,sans-serif"
+  });
+
+  var imgFrame = function imgFrameFct(image125, scale) {
+    if(!image125) {
+      return
+    }
+
+    let html = '<iframe sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:'+(40.0*scale-40.0)+'%; margin-left:'+(40.0*scale-40.0)+'%; transform:scale('+scale+'); transform-origin:bottom right"></iframe> '
+    html += '<div style="position:absolute;top:0px;left:0px;width:'+(180.0*scale-45.0)+'px;height:'+(180.0*scale-25)+'px"></div> '
+    return html
+  }
+
+  // First result
+  let first = $('<div style=""><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + arr[0].name + (arr[0].originalTitle?' ['+arr[0].originalTitle+']':'') +  " (" + arr[0].releaseYear + ")</a></div>").click(selectMovie).appendTo(main);
+  first[0].dataset["movie"] = JSON.stringify(arr[0])
+
+  // Shall the following results be collapsed by default?
+  if((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
+    let a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
+    let more = div = $("<div style=\"display:none\"></div>").appendTo(main);
+  }
+
+  // More results
+  for(let i = 1; i < arr.length; i++) {
+    let entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + arr[i].name + (arr[i].originalTitle?' ['+arr[i].originalTitle+']':'') + " (" + arr[i].releaseYear + ")</a></div>").click(selectMovie).appendTo(div);
+    entry[0].dataset["movie"] = JSON.stringify(arr[i])
+  }
+
+  // Footer
+  let sub = $("<div></div>").appendTo(main);
+  $('<time style="color:#789; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
+  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace("{query}", encodeURIComponent(current.query)) + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub);
+  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function() {
+    document.body.removeChild(this.parentNode.parentNode);
+  });
+
+}
+
+function selectMovie(ev) {
+  ev.preventDefault()
+  $("#mcdiv321letterboxd").html("Loading...")
+  
+  const data = JSON.parse(this.dataset.movie)
+
+  loadMovieRating(data)
+
+  addToWhiteList(data.url)
+}
+
+
+// TODO change background if not visible?
+
+async function loadMovieRating(data) {
+  // Load page from letterboxd
+
+  if("name" in data) {
+    current.query = data.name;
+  }
+  if("releaseYear" in data) {
+    current.year = data.releaseYear;
+  }
+
+  const url = baseURL_ratingHistogram.replace("{url}", data.url)
+
+  let cache = JSON.parse(await GM.getValue("cache","{}"));
+
+  // Delete cached values, that are expired
+  for(var prop in cache) {
+    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
+      delete cache[prop];
+    }
+  }
+
+  // Check cache or request new content
+  if(url in cache) {
+    // Use cached response
+    showMovieRating(cache[url], data.url);
+  } else {
+    GM.xmlHttpRequest({
+      method: "GET",
+      url: url,
+      onload: function(response) {
+        // Save to chache
+        response.time = (new Date()).toJSON();
+
+        // Chrome fix: Otherwise JSON.stringify(cache) omits responseText
+        var newobj = {};
+        for(var key in response) {
+          newobj[key] = response[key];
+        }
+        newobj.responseText = response.responseText;
+
+
+        cache[url] = newobj;
+
+        GM.setValue("cache",JSON.stringify(cache));
+
+        showMovieRating(newobj, data.url);
+      },
+      onerror: function(response) {
+        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
+      },
+    });
+  }
+}
+
+function showMovieRating(response, letterboxdUrl) {
+  // Show a small box in the right lower corner
+  const time = new Date(response.time)
+
+  $("#mcdiv321letterboxd").remove();
+  let main,div;
+  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body);
+  div.css({
+    position:"fixed",
+    bottom :0,
+    right: 0,
+    width: 230,
+    minHeight: 44,
+    color: "#789",
+    padding:" 3px",
+    zIndex: "5010001",
+    fontFamily : "Helvetica,Arial,sans-serif"
+  });
+  
+  const CSS = `<style>
+.rating {
+    display: inline-block;
+    height: 16px;
+    background: url(https://s.ltrbxd.com/static/img/sprite.18bffd5e.svg) no-repeat -290px -90px;
+    background-position-x: -290px;
+    background-position-y: -90px;
+    text-indent: 110%;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.rating-green .rating{
+    background-position:-450px -50px
+}
+.rating-green .rated-0{
+    width:0
+}
+.rating-green .rated-1{
+    width:13px;
+    background-position:-515px -50px
+}
+.rating-green .rated-2{
+    width:12px
+}
+.rating-green .rated-3{
+    width:26px;
+    background-position:-502px -50px
+}
+.rating-green .rated-4{
+    width:25px
+}
+.rating-green .rated-5{
+    width:39px;
+    background-position:-489px -50px
+}
+.rating-green .rated-6{
+    width:38px
+}
+.rating-green .rated-7{
+    width:52px;
+    background-position:-476px -50px
+}
+.rating-green .rated-8{
+    width:51px
+}
+.rating-green .rated-9{
+    width:65px;
+    background-position:-463px -50px
+}
+.rating-green .rated-10{
+    width:64px
+}
+.rating-green-tiny .rating{
+    background-position:-350px -380px;
+    height:9px
+}
+.rating-green-tiny .rated-2{
+    width:9px
+}
+.rating-green-tiny .rated-10{
+    width:49px
+}
+.rating-histogram,.rating-histogram ul{
+    height:44px
+}
+.rating-histogram .rating-1,.rating-histogram .rating-5{
+    position:absolute;
+    bottom:0;
+    display:block;
+    height:9px
+}
+.rating-histogram .rating-1 .rating,.rating-histogram .rating-5 .rating{
+    display:block
+}
+.rating-histogram .rating-1{
+    left:0
+}
+.rating-histogram .rating-5{
+    right:0
+}
+.rating-histogram ul{
+    width:200px;
+    left:15px
+}
+.rating-histogram ul,.rating-histogram ul li{
+    display:block;
+    overflow:hidden;
+    position:absolute;
+    bottom:0
+}
+.rating-histogram ul li{
+    height:1px;
+    width:30px;
+    height:100%;
+    font-size:10px;
+    line-height:1;
+    text-indent:110%;
+    white-space:nowrap;
+    border-bottom:0px
+}
+#mcdiv321letterboxd:hover .rating-histogram ul li{
+    border-bottom:2px solid green
+}
+
+.rating-histogram i{
+    background:#456;
+    border-top-right-radius:2px;
+    border-top-left-radius:2px
+}
+.rating-histogram a,.rating-histogram i{
+    width:100%;
+    position:absolute;
+    bottom:0;
+    left:0
+}
+.rating-histogram a{
+    display:block;
+    top:0;
+    right:0;
+    background:none;
+    padding:0;
+		color:#789
+}
+.rating-histogram a:link,.rating-histogram a:visited{
+    color:#789;
+		text-decoration:none
+}
+.rating-histogram a:hover i{
+    background-color:#678
+}
+.ratings-histogram-chart .section-heading{
+    margin-bottom:15px
+}
+.ratings-histogram-chart .average-rating{
+    position:absolute;
+    top:8px;
+    left:188px;
+    z-index:1
+}
+.ratings-histogram-chart .average-rating .display-rating{
+    display:block;
+    font-size:20px;
+    text-align:center;
+    color:#789;
+    margin-left:1px;
+    line-height:40px;
+    width:33px;
+    height:33px;
+    border-radius:20px;
+    font-family:Graphik-Light-Web,sans-serif;
+    font-weight:400
+}
+.rating-histogram {
+    overflow:hidden;
+    color:#9ab;
+    display:block
+    width: 230px;
+    height: 44px;
+    position: relative
+}
+.ratings-histogram-chart .all-link.more-link {
+    font-size:10px;
+		position:absolute;
+    top:0;
+    left:180px;
+}
+
+#mcdiv321letterboxd .footer {
+    display:none;
+}
+
+#mcdiv321letterboxd:hover .footer {
+    display:block;
+}
+
+#mcdiv321letterboxd {
+    border:none;
+    border-radius: 0px;
+    background-color:transparent;
+    transition:bottom 0.7s, background-color 0.5s, height 0.5s;
+}
+
+#mcdiv321letterboxd:hover {
+    border-radius: 4px;
+    background-color:rgb(44, 52, 64)
+}
+
+</style>`
+  
+  $(CSS).appendTo(main);
+  let section = $(fixLetterboxdURLs(response.responseText)).appendTo(main)
+  
+  section.find("h2").remove();
+
+  // Footer
+  let sub = $('<div class="footer"></div>').appendTo(main);
+  $('<span style="color:#789; font-size: 10px">' + current.query + (current.year?' ('+current.year+')':'') + '</span>').appendTo(sub)
+  $('<br>').appendTo(sub)
+  $('<time style="color:#789; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
+  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL+letterboxdUrl + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub);
+  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#10062;</span>').appendTo(sub).click(function() {
+    document.getElementById('mcdiv321letterboxd').remove()
+  });
+  $('<span title="Wrong movie!" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#128581;</span>').appendTo(sub).click(function() {
+    removeFromWhiteList()
+    searchMovie(current.query, current.type, current.year, true);
+  });
+  $('<span style="clear:right">').appendTo(sub)
+}
+
+
+var Always = () => true;
+var sites = {
+  'googleplay' : {
+    host : ["play.google.com"],
+    condition : Always,
+    products : [
+    {
+      condition : () => ~document.location.href.indexOf("/movies/details/"),
+      type : "movie",
+      data : () => document.querySelector("*[itemprop=name]").textContent
+    }
+    ]
+  },
+  'imdb' : {
+    host : ["imdb.com"],
+    condition : () => !~document.location.pathname.indexOf("/mediaviewer") && !~document.location.pathname.indexOf("/mediaindex") && !~document.location.pathname.indexOf("/videoplayer"),
+    products : [
+    {
+      condition : function() {
+        let e = document.querySelector("meta[property='og:type']");
+        if(e) {
+          return e.content == "video.movie"
+        }
+        return false;
+      },
+      type : "movie",
+      data : function() {
+        var year = null;
+        var name = null;
+        var jsonld = null;
+        if(document.querySelector("#titleYear")) {
+          year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
+        }
+        if(document.querySelector('script[type="application/ld+json"]')) {
+           jsonld = parseLDJSON(["name", "datePublished"]);
+           name = jsonld[0];
+           year = parseInt(jsonld[1].match(/\d{4}/)[0]);
+        }
+        if(document.querySelector(".originalTitle") && document.querySelector(".title_wrapper h1")) {
+           return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use English title
+        } else if(jsonld) {
+          return [name, year]; // Use original title
+        } else if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
+          return [document.querySelector("h1[itemprop=name]").firstChild.textContent.trim(), year];
+        } else if(document.querySelector("*[itemprop=name] a") && document.querySelector("*[itemprop=name] a").firstChild.data) { // Subpage of a move
+          return [document.querySelector("*[itemprop=name] a").firstChild.data.trim(), year];
+        } else if(document.querySelector(".title-extra[itemprop=name]")) { // Movie homepage: sub-/alternative-/original title
+          return [document.querySelector(".title-extra[itemprop=name]").firstChild.textContent.replace(/\"/g,"").trim(), year];
+        } else { // Movie homepage (old design)
+          return document.querySelector("*[itemprop=name]").firstChild.textContent.trim();
+        }
+      }
+    }
+    ]
+  },
+  'metacritic' : {
+    host : ["www.metacritic.com"],
+    condition : () => document.querySelector("meta[property='og:type']"),
+    products : [{
+      condition : () => document.querySelector("meta[property='og:type']").content == "video.movie",
+      type : "movie",
+      data : function() {
+        var year = null;
+        if(document.querySelector(".release_year")) {
+          year = parseInt(document.querySelector(".release_year").firstChild.textContent);
+        } else if(document.querySelector(".release_data .data")) {
+          year = document.querySelector(".release_data .data").textContent.match(/(\d{4})/)[1]
+        }
+
+        return [document.querySelector("meta[property='og:title']").content, year]
+      }
+    }]
+  },
+  'amazon' : {
+    host : ["amazon."],
+    condition : Always,
+    products : [{
+      condition : () => document.querySelector('[data-automation-id=title]'),
+      type : "movie",
+      data : () => document.querySelector('[data-automation-id=title]').textContent.trim()
+    }]
+  },
+  'BoxOfficeMojo' : {
+    host : ["boxofficemojo.com"],
+    condition : () => ~document.location.search.indexOf("id="),
+    products : [{
+      condition : () => document.querySelector("#body table:nth-child(2) tr:first-child b"),
+      type : "movie",
+      data : function() {
+        var year = null;
+        try {
+        var tds = document.querySelectorAll("#body table:nth-child(2) tr:first-child table table table td");
+        for(var i = 0; i< tds.length; i++) {
+          if(~tds[i].innerText.indexOf("Release Date")) {
+            year = parseInt(tds[i].innerText.match(/\d{4}/)[0]);
+            break;
+          }
+        }
+        } catch(e) { }
+        return [document.querySelector("#body table:nth-child(2) tr:first-child b").firstChild.data, year];
+      }
+    }]
+  },
+  'AllMovie' : {
+    host : ["allmovie.com"],
+    condition : () => document.querySelector("h2[itemprop=name].movie-title"),
+    products : [{
+      condition : () => document.querySelector("h2[itemprop=name].movie-title"),
+      type : "movie",
+      data : () => document.querySelector("h2[itemprop=name].movie-title").firstChild.data.trim()
+    }]
+  },
+  'en.wikipedia' : {
+    host : ["en.wikipedia.org"],
+    condition : Always,
+    products : [{
+      condition : function() {
+        if(!document.querySelector(".infobox .summary")) {
+          return false;
+        }
+        var r = /\d\d\d\d films/;
+        return $("#catlinks a").filter((i,e) => e.firstChild.data.match(r)).length;
+      },
+      type : "movie",
+      data : () => document.querySelector(".infobox .summary").firstChild.data
+    }]
+  },
+  'movies.com' : {
+    host : ["movies.com"],
+    condition : () => document.querySelector("meta[property='og:title']"),
+    products : [{
+      condition : Always,
+      type : "movie",
+      data : () => document.querySelector("meta[property='og:title']").content
+    }]
+  },
+  'themoviedb' : {
+    host : ["themoviedb.org"],
+    condition : () => document.querySelector("meta[property='og:type']"),
+    products : [{
+      condition : () => document.querySelector("meta[property='og:type']").content == "movie",
+      type : "movie",
+      data : function() {
+        var year = null;
+        try {
+          year = parseInt(document.querySelector(".release_date").innerText.match(/\d{4}/)[0]);
+        } catch(e) {}
+
+        return [document.querySelector("meta[property='og:title']").content, year]
+      }
+    }]
+  },
+  'rottentomatoes' : {
+    host : ["www.rottentomatoes.com"],
+    condition : Always,
+    products : [{
+      condition : () => document.location.pathname.startsWith("/m/"),
+      type : "movie",
+      data : () => document.querySelector("h1").firstChild.textContent
+    }
+    ]
+  },
+  'nme' : {
+    host : ["nme.com"],
+    condition : () => document.location.pathname.startsWith("/reviews/"),
+    products : [    {
+      condition : () => document.location.pathname.startsWith("/reviews/movie/"),
+      type : "movie",
+      data : function() {
+        var year = null;
+        try {
+          year = parseInt(document.querySelector("*[itemprop=datePublished]").content.match(/\d{4}/)[0])
+        } catch(e) {}
+
+        try {
+          return [ document.querySelector(".title-primary").textContent.match(/‘(.+?)’/)[1] , year ];
+        } catch(e) {
+          return [ document.querySelector("h1").textContent.match(/:\s*(.+)/)[1].trim() , year ];
+        }
+      }
+    }]
+  },
+  'itunes' : {
+    host : ["itunes.apple.com"],
+    condition : Always,
+    products : [{
+      condition : () => ~document.location.href.indexOf("/movie/"),
+      type : "movie",
+      data : () => parseLDJSON("name", (j) => (j["@type"] == "Movie"))
+    }]
+  }
+
+};
+
+
+function main() {
+
+  for(var name in sites) {
+    var site = sites[name];
+    if(site.host.some(function(e) {return ~this.indexOf(e)}, document.location.hostname) && site.condition()) {
+      for(var i = 0; i < site.products.length; i++) {
+        if(site.products[i].condition()) {
+          // Try to retrieve item name from page
+          var data;
+          try {
+            data = site.products[i].data();
+          } catch(e) {
+            data = false;
+            console.log(e);
+          }
+          if(data) {
+            if(Array.isArray(data) && data[1]) {
+              searchMovie(data[0].trim(), site.products[i].type, parseInt(data[1]));
+            } else {
+              searchMovie(data.trim(), site.products[i].type);
+            }
+          }
+          break;
+        }
+      }
+      break;
+    }
+  }
+}
+
+async function adaptForRottentomatoesScript() {
+  if(!document.getElementById('mcdiv321rotten') || !document.getElementById('mcdiv321letterboxd')) {
+    return
+  }
+  const h = parseInt(document.getElementById('mcdiv321rotten').clientHeight) + 5
+  if(document.getElementById('mcdiv321letterboxd').dataset.adapted && parseInt(document.getElementById('mcdiv321letterboxd').dataset.adapted) == h) {
+    return
+  }
+  const letterboxd = document.getElementById('mcdiv321letterboxd')
+  letterboxd.style.bottom = h + 'px'
+  document.getElementById('mcdiv321letterboxd').dataset.adapted = h
+}
+
+(function() {
+
+  main();
+  var lastLoc = document.location.href;
+  var lastContent = document.body.innerText;
+  var lastCounter = 0;
+  function newpage() {
+    if(lastContent == document.body.innerText && lastCounter < 15) {
+      window.setTimeout(newpage, 500);
+      lastCounter++;
+    } else {
+      lastCounter = 0;
+      main();
+    }
+  }
+  window.setInterval(function() {
+    adaptForRottentomatoesScript()
+    if(document.location.href != lastLoc) {
+      lastLoc = document.location.href;
+      $("#mcdiv321letterboxd").remove();
+
+      window.setTimeout(newpage,1000);
+    }
+  },500);
+
+})();
