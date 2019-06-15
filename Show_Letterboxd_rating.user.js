@@ -229,7 +229,7 @@ async function searchMovie(query, type, year, forceList) {
         handleSearchResponse(response, forceList);
       },
       onerror: function(response) {
-        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
+        console.log("Letterboxd GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
       },
     });
   }
@@ -240,10 +240,10 @@ function handleSearchResponse(response, forceList) {
 
   let result = JSON.parse(response.responseText);
   
-  if(forceList && (result.result == false || !result.data)) {
-    alert("No results for "+current.query);
-  } else if(result.result == false || !result.data) {
-    console.log("No results for "+current.query);
+  if(forceList && (result.result == false || !result.data || !result.data.length)) {
+    alert("Letterboxd userscript\n\nNo results for "+current.query);
+  } else if(result.result == false || !result.data || !result.data.length) {
+    console.log("Letterboxd: No results for "+current.query);
   } else if(!forceList && result.data.length == 1) {
     loadMovieRating(result.data[0]);
   } else {
@@ -883,6 +883,7 @@ function main() {
             data = site.products[i].data();
           } catch(e) {
             data = false;
+            console.log("Letterboxd Error:")
             console.log(e);
           }
           if(data) {
