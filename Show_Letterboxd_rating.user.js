@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     1
+// @version     2
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -105,15 +105,23 @@ function filterUniversalUrl(url) {
   }
 }
 
+var parseLDJSON_cache = {}
 function parseLDJSON(keys, condition) {
   if(document.querySelector('script[type="application/ld+json"]')) {
     var data = [];
     var scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for(let i = 0; i < scripts.length; i++) {
-      try {
-        var jsonld = JSON.parse(scripts[i].innerText);
-      } catch(e) {
-        continue;
+      var jsonld;
+      if (scripts[i].innerText in parseLDJSON_cache) {
+        jsonld = parseLDJSON_cache[scripts[i].innerText]
+      } else {
+        try {
+          jsonld = JSON.parse(scripts[i].innerText);
+          parseLDJSON_cache[scripts[i].innerText] = jsonld
+        } catch(e) {
+          parseLDJSON_cache[scripts[i].innerText] = null
+          continue;
+        }
       }
       if(jsonld) {
         if(Array.isArray(jsonld)) {
@@ -176,8 +184,8 @@ async function searchMovie(query, type, year, forceList) {
   current.type = type;
   current.query = query;
   current.year = year;
-  
-  
+
+
   let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
 
   if(forceList) {
@@ -239,7 +247,7 @@ function handleSearchResponse(response, forceList) {
   // Handle GM.xmlHttpRequest response
 
   let result = JSON.parse(response.responseText);
-  
+
   if(forceList && (result.result == false || !result.data || !result.data.length)) {
     alert("Letterboxd userscript\n\nNo results for "+current.query);
   } else if(result.result == false || !result.data || !result.data.length) {
@@ -317,7 +325,11 @@ function handleSearchResponse(response, forceList) {
       return b.matchQuality - a.matchQuality;
     });
 
-    showMovieList(result.data, new Date(response.time));
+    if(!forceList && result.data.length > 1 && result.data[0].matchQuality > 100 && result.data[1].matchQuality < result.data[0].matchQuality) {
+      loadMovieRating(result.data[0]);
+    } else {
+      showMovieList(result.data, new Date(response.time));
+    }
   }
 }
 
@@ -383,7 +395,7 @@ function showMovieList(arr, time) {
 function selectMovie(ev) {
   ev.preventDefault()
   $("#mcdiv321letterboxd").html("Loading...")
-  
+
   const data = JSON.parse(this.dataset.movie)
 
   loadMovieRating(data)
@@ -415,7 +427,7 @@ async function loadMovieRating(data) {
   // Check cache or request new content
   if(url in cache) {
     // Use cached response
-    showMovieRating(cache[url], data.url);
+    showMovieRating(cache[url], data.url, data);
   } else {
     GM.xmlHttpRequest({
       method: "GET",
@@ -436,7 +448,7 @@ async function loadMovieRating(data) {
 
         GM.setValue("cache",JSON.stringify(cache));
 
-        showMovieRating(newobj, data.url);
+        showMovieRating(newobj, data.url, data);
       },
       onerror: function(response) {
         console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
@@ -445,7 +457,7 @@ async function loadMovieRating(data) {
   }
 }
 
-function showMovieRating(response, letterboxdUrl) {
+function showMovieRating(response, letterboxdUrl, otherData) {
   // Show a small box in the right lower corner
   const time = new Date(response.time)
 
@@ -463,7 +475,7 @@ function showMovieRating(response, letterboxdUrl) {
     zIndex: "5010001",
     fontFamily : "Helvetica,Arial,sans-serif"
   });
-  
+
   const CSS = `<style>
 .rating {
     display: inline-block;
@@ -652,15 +664,44 @@ function showMovieRating(response, letterboxdUrl) {
 }
 
 </style>`
-  
+
   $(CSS).appendTo(main);
   let section = $(fixLetterboxdURLs(response.responseText)).appendTo(main)
-  
+
   section.find("h2").remove();
+
+  let identName = current.query
+  let identYear = current.year?' ('+current.year+')':''
+  let identOriginalName = ''
+  let identDirector = ''
+  if(otherData) {
+    if('name' in otherData && otherData.name) {
+      identName = otherData.name
+    }
+    if('year' in otherData && otherData.year) {
+      identYear = ' ('+otherData.year+')'
+    }
+    if('originalName' in otherData && otherData.originalName) {
+      identOriginalName = ' "'+otherData.originalName+'"'
+    }
+    if('directors' in otherData) {
+      identDirector = []
+      for(let i = 0; i < otherData.directors.length; i++) {
+        if('name' in otherData.directors[i]) {
+            identDirector.push(otherData.directors[i].name)
+        }
+      }
+      if(identDirector) {
+        identDirector = '<br><span style="font-size:10px">Dir. ' + identDirector.join(', ') + '</span>'
+      } else {
+        identDirector = ''
+      }
+    }
+  }
 
   // Footer
   let sub = $('<div class="footer"></div>').appendTo(main);
-  $('<span style="color:#789; font-size: 10px">' + current.query + (current.year?' ('+current.year+')':'') + '</span>').appendTo(sub)
+  $('<span style="color:#789; font-size: 11px">' + identName + identOriginalName + identYear + identDirector + '</span>').appendTo(sub)
   $('<br>').appendTo(sub)
   $('<time style="color:#789; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
   $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL+letterboxdUrl + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub);
