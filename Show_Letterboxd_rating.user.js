@@ -10,10 +10,10 @@
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
-// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js
+// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     2
+// @version     3
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -749,15 +749,25 @@ var sites = {
         if(document.querySelector("#titleYear")) {
           year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
         }
-        if(document.querySelector('script[type="application/ld+json"]')) {
+        if(document.querySelector("meta[property='og:title']") && document.querySelector("meta[property='og:title']").content) { // English title, this is the prefered title for Rottentomatoes' search
+          name = document.querySelector("meta[property='og:title']").content.trim()
+          if (name.indexOf('- IMDb') !== -1) {
+            name = name.replace('- IMDb', '').trim()
+          }
+          name = name.replace(/\(\d{4}\)/, '').trim()
+        }
+        if(document.querySelector('script[type="application/ld+json"]')) { // Original title and release year
            jsonld = parseLDJSON(["name", "datePublished"]);
-           name = jsonld[0];
-           year = parseInt(jsonld[1].match(/\d{4}/)[0]);
+           if (name == null)
+             name = jsonld[0];
+           if (year == null)
+             year = parseInt(jsonld[1].match(/\d{4}/)[0]);
+        }
+        if(name != null && year != null) {
+          return [name, year]; // Use original title 
         }
         if(document.querySelector(".originalTitle") && document.querySelector(".title_wrapper h1")) {
-           return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use English title
-        } else if(jsonld) {
-          return [name, year]; // Use original title
+           return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use localized title
         } else if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
           return [document.querySelector("h1[itemprop=name]").firstChild.textContent.trim(), year];
         } else if(document.querySelector("*[itemprop=name] a") && document.querySelector("*[itemprop=name] a").firstChild.data) { // Subpage of a move
