@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     3
+// @version     4
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -49,12 +49,13 @@
 // @include     https://en.wikipedia.org/*
 // @include     http://www.movies.com/*/m*
 // @include     https://www.themoviedb.org/movie/*
-// @include     http://www.rottentomatoes.com/m/*
 // @include     https://www.rottentomatoes.com/m/*
+// @include     https://rottentomatoes.com/m/*
 // @include     http://www.metacritic.com/movie/*
 // @include     https://www.metacritic.com/movie/*
 // @include     https://www.nme.com/reviews/movie/*
 // @include     https://itunes.apple.com/*/movie/*
+// @include     https://www.tvhoard.com/*
 // ==/UserScript==
 
 
@@ -663,6 +664,20 @@ function showMovieRating(response, letterboxdUrl, otherData) {
     background-color:rgb(44, 52, 64)
 }
 
+/* Fixes/Resets for interfering site css */
+#mcdiv321letterboxd .tooltip{
+  border: none;
+  box-shadow:none;
+  background-color:transparent;
+  opacity:1.0;
+  white-space: nowrap;
+}
+
+
+
+
+
+
 </style>`
 
   $(CSS).appendTo(main);
@@ -764,7 +779,7 @@ var sites = {
              year = parseInt(jsonld[1].match(/\d{4}/)[0]);
         }
         if(name != null && year != null) {
-          return [name, year]; // Use original title 
+          return [name, year]; // Use original title
         }
         if(document.querySelector(".originalTitle") && document.querySelector(".title_wrapper h1")) {
            return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use localized title
@@ -879,7 +894,7 @@ var sites = {
     }]
   },
   'rottentomatoes' : {
-    host : ["www.rottentomatoes.com"],
+    host : ["rottentomatoes.com"],
     condition : Always,
     products : [{
       condition : () => document.location.pathname.startsWith("/m/"),
@@ -916,13 +931,22 @@ var sites = {
       type : "movie",
       data : () => parseLDJSON("name", (j) => (j["@type"] == "Movie"))
     }]
-  }
+  },
+  'TVHoard' : {
+    host : ['tvhoard.com'],
+    condition : Always,
+    products : [{
+      condition : () => document.location.pathname.split("/").length === 3 && document.location.pathname.split('/')[1] === 'titles' && !document.querySelector('app-root title-secondary-details-panel .seasons') && document.querySelector('app-root title-page-container h1.title a'),
+      type : 'movie',
+    data : () => [document.querySelector('app-root title-page-container h1.title a').textContent.trim(), document.querySelector('app-root title-page-container title-primary-details-panel h1.title .year').textContent.trim().substring(1,5)]
+    }]
+  },
 
 };
 
 
 function main() {
-
+  var dataFound = false;
   for(var name in sites) {
     var site = sites[name];
     if(site.host.some(function(e) {return ~this.indexOf(e)}, document.location.hostname) && site.condition()) {
@@ -943,6 +967,7 @@ function main() {
             } else {
               searchMovie(data.trim(), site.products[i].type);
             }
+            dataFound = true
           }
           break;
         }
@@ -950,6 +975,7 @@ function main() {
       break;
     }
   }
+  return dataFound;
 }
 
 async function adaptForRottentomatoesScript() {
@@ -967,7 +993,7 @@ async function adaptForRottentomatoesScript() {
 
 (function() {
 
-  main();
+  const firstRunResult = main();
   var lastLoc = document.location.href;
   var lastContent = document.body.innerText;
   var lastCounter = 0;
@@ -977,7 +1003,10 @@ async function adaptForRottentomatoesScript() {
       lastCounter++;
     } else {
       lastCounter = 0;
-      main();
+      let re = main();
+      if(!re) { // No page matched or no data found
+        window.setTimeout(newpage, 1000);
+      }
     }
   }
   window.setInterval(function() {
@@ -990,4 +1019,8 @@ async function adaptForRottentomatoesScript() {
     }
   },500);
 
+  if (!firstRunResult) {
+    // Initial run had no match, let's try again there may be new content
+    window.setTimeout(main, 2000);
+  }
 })();
