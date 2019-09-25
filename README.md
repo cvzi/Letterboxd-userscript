@@ -3,8 +3,11 @@ Letterboxd-userscript
 A userscript or greasemonkey script that shows the rating from letterboxd.com on several other websites like amazon, google play and others.
 
 
-[**Click here for install**](https://openuserjs.org/install/cuzi/Show_Letterboxd_rating.user.js)  
-Tested with Firefox/**Greasemonkey 4** and Chrome/**Tampermonkey**.
+This is a userscript. It's primarily designed for Firefox with [Greasemonkey](https://addons.mozilla.org/firefox/addon/greasemonkey/) and Chrome with [Tampermonkey](https://www.tampermonkey.net/). 
+General information about userscripts and how to use them can be found at [openuserjs.org/about/Userscript-Beginners-HOWTO](https://openuserjs.org/about/Userscript-Beginners-HOWTO).
+
+If you already have a userscript extension installed, you can click [here](https://openuserjs.org/install/cuzi/Show_Letterboxd_rating.user.js) to install this script.
+
 
 I develop similar scripts for the [Metacritic](https://www.metacritic.com/) score, see [cvzi/Metacritic-userscript](https://github.com/cvzi/Metacritic-userscript/)  
 and for the [Rotten Tomatoes](https://www.rottentomatoes.com/) score, see [cvzi/Rottentomatoes-userscript](https://github.com/cvzi/Rottentomatoes-userscript)
