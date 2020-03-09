@@ -13,7 +13,7 @@
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     4
+// @version     5
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -44,6 +44,7 @@
 // @include     https://www.serienjunkies.de/*
 // @include     http://www.boxofficemojo.com/movies/*
 // @include     https://www.boxofficemojo.com/movies/*
+// @include     https://www.boxofficemojo.com/release/*
 // @include     http://www.allmovie.com/movie/*
 // @include     https://www.allmovie.com/movie/*
 // @include     https://en.wikipedia.org/*
@@ -90,7 +91,7 @@ function filterUniversalUrl(url) {
   } else if(url.startsWith("thetvdb.com/")) {
      // Do nothing with thetvdb.com urls
      return url;
-  } else if(url.startsWith("boxofficemojo.com/")) {
+  } else if(url.startsWith("boxofficemojo.com/") && url.indexOf('id=') !== -1) {
      // Keep the important id= on
      try {
        var parts = url.split("?");
@@ -825,9 +826,25 @@ var sites = {
   },
   'BoxOfficeMojo' : {
     host : ["boxofficemojo.com"],
-    condition : () => ~document.location.search.indexOf("id="),
-    products : [{
-      condition : () => document.querySelector("#body table:nth-child(2) tr:first-child b"),
+    condition : () => Always,
+    products : [
+    {
+      condition: () => document.location.pathname.startsWith('/release/'),
+      type: 'movie',
+      data: function() {
+        let year = null
+        let cells = document.querySelectorAll("#body .mojo-summary-values .a-section span");
+        for(let i = 0; i< cells.length; i++) {
+          if(~cells[i].innerText.indexOf("Release Date")) {
+            year = parseInt(cells[i].nextElementSibling.textContent.match(/\d{4}/)[0]);
+            break;
+          }
+        }
+        return [document.querySelector('meta[name=title]').content, year]
+      }
+    },
+    {
+      condition : () => ~document.location.search.indexOf("id=") && document.querySelector("#body table:nth-child(2) tr:first-child b"),
       type : "movie",
       data : function() {
         var year = null;
