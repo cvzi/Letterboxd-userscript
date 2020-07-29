@@ -11,9 +11,8 @@
 // @grant       GM.setValue
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
-// @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     5
+// @version     6
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -1019,6 +1018,7 @@ async function adaptForRottentomatoesScript() {
       window.setTimeout(newpage, 500);
       lastCounter++;
     } else {
+      lastContent = document.body.innerText
       lastCounter = 0;
       let re = main();
       if(!re) { // No page matched or no data found
