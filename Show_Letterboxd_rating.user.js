@@ -10,9 +10,9 @@
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
-// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js
+// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     6
+// @version     7
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -361,9 +361,17 @@ function showMovieList(arr, time) {
     if(!image125) {
       return
     }
-
-    let html = '<iframe sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:'+(40.0*scale-40.0)+'%; margin-left:'+(40.0*scale-40.0)+'%; transform:scale('+scale+'); transform-origin:bottom right"></iframe> '
+    const id = 'iframeimg'+Math.random()
+    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:'+(40.0*scale-40.0)+'%; margin-left:'+(40.0*scale-40.0)+'%; transform:scale('+scale+'); transform-origin:bottom right"></iframe> '
     html += '<div style="position:absolute;top:0px;left:0px;width:'+(180.0*scale-45.0)+'px;height:'+(180.0*scale-25)+'px"></div> '
+    GM.xmlHttpRequest({
+      method: "GET",
+      url: baseURL + image125,
+      onload: function(response) {
+        const html = '<base href="' + baseURL +'">' + response.responseText
+        document.getElementById(id).src = "data:text/html;charset=utf-8," + escape(html)
+      }
+    })
     return html
   }
 
