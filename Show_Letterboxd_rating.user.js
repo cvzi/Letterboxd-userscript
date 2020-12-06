@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Show Letterboxd rating
-// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, movies.com
+// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com
 // @namespace   cuzi
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
 // @grant       GM_xmlhttpRequest
@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     8
+// @version     9
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -47,7 +47,7 @@
 // @include     http://www.allmovie.com/movie/*
 // @include     https://www.allmovie.com/movie/*
 // @include     https://en.wikipedia.org/*
-// @include     http://www.movies.com/*/m*
+// @include     https://www.fandango.com/*
 // @include     https://www.themoviedb.org/movie/*
 // @include     https://www.rottentomatoes.com/m/*
 // @include     https://rottentomatoes.com/m/*
@@ -56,6 +56,7 @@
 // @include     https://www.nme.com/reviews/movie/*
 // @include     https://itunes.apple.com/*/movie/*
 // @include     https://www.tvhoard.com/*
+// @include     https://thetvdb.com/movies/*
 // ==/UserScript==
 
 
@@ -87,9 +88,6 @@ function filterUniversalUrl(url) {
   if(url.startsWith("imdb.com/") && url.match(/(imdb\.com\/\w+\/\w+\/)/)) {
      // Remove movie subpage from imdb url
      return url.match(/(imdb\.com\/\w+\/\w+\/)/)[1];
-  } else if(url.startsWith("thetvdb.com/")) {
-     // Do nothing with thetvdb.com urls
-     return url;
   } else if(url.startsWith("boxofficemojo.com/") && url.indexOf('id=') !== -1) {
      // Keep the important id= on
      try {
@@ -903,13 +901,13 @@ var sites = {
       data : () => document.querySelector(".infobox .summary").firstChild.data
     }]
   },
-  'movies.com' : {
-    host : ["movies.com"],
-    condition : () => document.querySelector("meta[property='og:title']"),
-    products : [{
-      condition : Always,
-      type : "movie",
-      data : () => document.querySelector("meta[property='og:title']").content
+  fandango: {
+    host: ['fandango.com'],
+    condition: () => document.querySelector("meta[property='og:title']"),
+    products: [{
+      condition: Always,
+      type: 'movie',
+      data: () => document.querySelector("meta[property='og:title']").content.match(/(.+?)\s+\(\d{4}\)/)[1].trim()
     }]
   },
   'themoviedb' : {
@@ -956,6 +954,15 @@ var sites = {
           return [ document.querySelector("h1").textContent.match(/:\s*(.+)/)[1].trim() , year ];
         }
       }
+    }]
+  },
+  TheTVDB: {
+    host: ['thetvdb.com'],
+    condition: Always,
+    products: [{
+      condition: () => document.location.pathname.startsWith('/movies/'),
+      type: 'movie',
+      data: () => document.getElementById('series_title').firstChild.data.trim()
     }]
   },
   'itunes' : {

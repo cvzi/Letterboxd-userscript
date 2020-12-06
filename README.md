@@ -28,7 +28,8 @@ Supported sites and products:
  * Google Play
  * allmovie.com
  * Wikipedia
- * movies.com
+ * fandango.com
+ * thetvdb.com
  * nme.com - New Musical Express
  * itunes.apple.com
 
