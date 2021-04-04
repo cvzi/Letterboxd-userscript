@@ -6,13 +6,12 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
-// @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     9
+// @version     10
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -57,351 +56,347 @@
 // @include     https://itunes.apple.com/*/movie/*
 // @include     https://www.tvhoard.com/*
 // @include     https://thetvdb.com/movies/*
+// @include     http://rlsbb.ru/*/
 // ==/UserScript==
 
+/* global GM, $ */
 
-var baseURL = "https://letterboxd.com"
-var baseURL_search = baseURL + "/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}"
-var baseURL_openTab = baseURL + "/search/{query}/";
-var baseURL_ratingHistogram = baseURL + "/csi{url}rating-histogram/";
+const baseURL = 'https://letterboxd.com'
+const baseURL_search = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
+const baseURL_openTab = baseURL + '/search/{query}/'
+const baseURL_ratingHistogram = baseURL + '/csi{url}rating-histogram/'
 
-const cacheExpireAfterHours = 4;
+const cacheExpireAfterHours = 4
 
-function minutesSince(time) {
-  let seconds = ((new Date()).getTime() - time.getTime()) / 1000;
-  return seconds>60?parseInt(seconds/60)+" min ago":"now";
+function minutesSince (time) {
+  const seconds = ((new Date()).getTime() - time.getTime()) / 1000
+  return seconds > 60 ? parseInt(seconds / 60) + ' min ago' : 'now'
 }
 
-function fixLetterboxdURLs(html) {
-  return html.replace(/<a /g,'<a target="_blank" ').replace(/href="\//g,'href="'+baseURL+"/").replace(/src="\//g,'src="'+baseURL+"/");
+function fixLetterboxdURLs (html) {
+  return html.replace(/<a /g, '<a target="_blank" ').replace(/href="\//g, 'href="' + baseURL + '/').replace(/src="\//g, 'src="' + baseURL + '/')
 }
 
-function filterUniversalUrl(url) {
+function filterUniversalUrl (url) {
   try {
-    url = url.match(/http.+/)[0];
-  } catch(e) { }
+    url = url.match(/http.+/)[0]
+  } catch (e) { }
 
   try {
-    url = url.replace(/https?:\/\/(www.)?/,"");
-  } catch(e) { }
+    url = url.replace(/https?:\/\/(www.)?/, '')
+  } catch (e) { }
 
-  if(url.startsWith("imdb.com/") && url.match(/(imdb\.com\/\w+\/\w+\/)/)) {
-     // Remove movie subpage from imdb url
-     return url.match(/(imdb\.com\/\w+\/\w+\/)/)[1];
-  } else if(url.startsWith("boxofficemojo.com/") && url.indexOf('id=') !== -1) {
-     // Keep the important id= on
-     try {
-       var parts = url.split("?");
-       var page = url[0] + "?";
-       var idparam = url[1].match(/(id=.+?)(\.|&)/)[1];
-       return page+idparam;
-     } catch(e) {
-       return url;
-     }
+  if (url.startsWith('imdb.com/') && url.match(/(imdb\.com\/\w+\/\w+\/)/)) {
+    // Remove movie subpage from imdb url
+    return url.match(/(imdb\.com\/\w+\/\w+\/)/)[1]
+  } else if (url.startsWith('boxofficemojo.com/') && url.indexOf('id=') !== -1) {
+    // Keep the important id= on
+    try {
+      const parts = url.split('?')
+      const page = url[0] + '?'
+      const idparam = url[1].match(/(id=.+?)(\.|&)/)[1]
+      return page + idparam
+    } catch (e) {
+      return url
+    }
   } else {
     // Default: Remove parameters
-    return url.split("?")[0].split("&")[0];
+    return url.split('?')[0].split('&')[0]
   }
 }
 
-var parseLDJSON_cache = {}
-function parseLDJSON(keys, condition) {
-  if(document.querySelector('script[type="application/ld+json"]')) {
-    var data = [];
-    var scripts = document.querySelectorAll('script[type="application/ld+json"]');
-    for(let i = 0; i < scripts.length; i++) {
-      var jsonld;
+const parseLDJSON_cache = {}
+function parseLDJSON (keys, condition) {
+  if (document.querySelector('script[type="application/ld+json"]')) {
+    const data = []
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]')
+    for (let i = 0; i < scripts.length; i++) {
+      let jsonld
       if (scripts[i].innerText in parseLDJSON_cache) {
         jsonld = parseLDJSON_cache[scripts[i].innerText]
       } else {
         try {
-          jsonld = JSON.parse(scripts[i].innerText);
+          jsonld = JSON.parse(scripts[i].innerText)
           parseLDJSON_cache[scripts[i].innerText] = jsonld
-        } catch(e) {
+        } catch (e) {
           parseLDJSON_cache[scripts[i].innerText] = null
-          continue;
+          continue
         }
       }
-      if(jsonld) {
-        if(Array.isArray(jsonld)) {
+      if (jsonld) {
+        if (Array.isArray(jsonld)) {
           data.push(...jsonld)
         } else {
-          data.push(jsonld);
+          data.push(jsonld)
         }
       }
     }
-    for(let i = 0; i < data.length; i++) {
+    for (let i = 0; i < data.length; i++) {
       try {
-        if(data[i] && data[i] && (typeof condition != 'function' || condition(data[i]))) {
-          if(Array.isArray(keys)) {
-            let r = [];
-            for(let j = 0; j < keys.length; j++) {
-              r.push(data[i][keys[j]]);
+        if (data[i] && data[i] && (typeof condition !== 'function' || condition(data[i]))) {
+          if (Array.isArray(keys)) {
+            const r = []
+            for (let j = 0; j < keys.length; j++) {
+              r.push(data[i][keys[j]])
             }
-            return r;
-          } else if(keys) {
-            return data[i][keys];
-          } else if(typeof condition === 'function') {
-            return data[i]; // Return whole object
+            return r
+          } else if (keys) {
+            return data[i][keys]
+          } else if (typeof condition === 'function') {
+            return data[i] // Return whole object
           }
         }
-      } catch(e) {
-        continue;
+      } catch (e) {
+        continue
       }
     }
-    return data;
+    return data
   }
-  return null;
+  return null
 }
 
-async function addToWhiteList(letterboxdUrl) {
-  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
+async function addToWhiteList (letterboxdUrl) {
+  const whitelist = JSON.parse(await GM.getValue('whitelist', '{}'))
   const docUrl = filterUniversalUrl(document.location.href)
   whitelist[docUrl] = letterboxdUrl
-  await GM.setValue("whitelist", JSON.stringify(whitelist));
+  await GM.setValue('whitelist', JSON.stringify(whitelist))
 }
 
-async function removeFromWhiteList() {
-  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
+async function removeFromWhiteList () {
+  const whitelist = JSON.parse(await GM.getValue('whitelist', '{}'))
   const docUrl = filterUniversalUrl(document.location.href)
-  if(docUrl in whitelist) {
+  if (docUrl in whitelist) {
     delete whitelist[docUrl]
-    await GM.setValue("whitelist", JSON.stringify(whitelist));
+    await GM.setValue('whitelist', JSON.stringify(whitelist))
   }
 }
 
-var current = {
-  type : null,
-  query : null,
-  year : null
-};
+const current = {
+  type: null,
+  query: null,
+  year: null
+}
 
-
-async function searchMovie(query, type, year, forceList) {
+async function searchMovie (query, type, year, forceList) {
   // Load data from letterboxd search API or from cache
 
-  current.type = type;
-  current.query = query;
-  current.year = year;
+  current.type = type
+  current.query = query
+  current.year = year
 
+  let whitelist = JSON.parse(await GM.getValue('whitelist', '{}'))
 
-  let whitelist = JSON.parse(await GM.getValue("whitelist","{}"));
-
-  if(forceList) {
+  if (forceList) {
     whitelist = {}
   }
 
   const docUrl = filterUniversalUrl(document.location.href)
-  if(docUrl in whitelist) {
-    return loadMovieRating({'url' : whitelist[docUrl]})
+  if (docUrl in whitelist) {
+    return loadMovieRating({ url: whitelist[docUrl] })
   }
 
-  const url = baseURL_search.replace("{query}", encodeURIComponent(query)).replace("{timestamp}", encodeURIComponent(Date.now()));
+  const url = baseURL_search.replace('{query}', encodeURIComponent(query)).replace('{timestamp}', encodeURIComponent(Date.now()))
 
-  let cache = JSON.parse(await GM.getValue("cache","{}"));
+  const cache = JSON.parse(await GM.getValue('cache', '{}'))
 
   // Delete cached values, that are expired
-  for(var prop in cache) {
-    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
-      delete cache[prop];
+  for (const prop in cache) {
+    if ((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours * 60 * 60 * 1000) {
+      delete cache[prop]
     }
   }
 
   // Check cache or request new content
-  if(url in cache) {
+  if (url in cache) {
     // Use cached response
-    handleSearchResponse(cache[url], forceList);
+    handleSearchResponse(cache[url], forceList)
   } else {
     GM.xmlHttpRequest({
-      method: "GET",
+      method: 'GET',
       url: url,
-      onload: function(response) {
+      onload: function (response) {
         // Save to chache
 
-        response.time = (new Date()).toJSON();
+        response.time = (new Date()).toJSON()
 
         // Chrome fix: Otherwise JSON.stringify(cache) omits responseText
-        var newobj = {};
-        for(var key in response) {
-          newobj[key] = response[key];
+        const newobj = {}
+        for (const key in response) {
+          newobj[key] = response[key]
         }
-        newobj.responseText = response.responseText;
+        newobj.responseText = response.responseText
 
+        cache[url] = newobj
 
-        cache[url] = newobj;
+        GM.setValue('cache', JSON.stringify(cache))
 
-
-        GM.setValue("cache",JSON.stringify(cache));
-
-        handleSearchResponse(response, forceList);
+        handleSearchResponse(response, forceList)
       },
-      onerror: function(response) {
-        console.log("Letterboxd GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
-      },
-    });
+      onerror: function (response) {
+        console.log('Letterboxd GM.xmlHttpRequest Error: ' + response.status + '\nURL: ' + url + '\nResponse:\n' + response.responseText)
+      }
+    })
   }
 }
 
-function handleSearchResponse(response, forceList) {
+function handleSearchResponse (response, forceList) {
   // Handle GM.xmlHttpRequest response
 
-  let result = JSON.parse(response.responseText);
+  const result = JSON.parse(response.responseText)
 
-  if(forceList && (result.result == false || !result.data || !result.data.length)) {
-    alert("Letterboxd userscript\n\nNo results for "+current.query);
-  } else if(result.result == false || !result.data || !result.data.length) {
-    console.log("Letterboxd: No results for "+current.query);
-  } else if(!forceList && result.data.length == 1) {
-    loadMovieRating(result.data[0]);
+  if (forceList && (result.result === false || !result.data || !result.data.length)) {
+    window.alert('Letterboxd userscript\n\nNo results for ' + current.query)
+  } else if (result.result === false || !result.data || !result.data.length) {
+    console.log('Letterboxd: No results for ' + current.query)
+  } else if (!forceList && result.data.length === 1) {
+    loadMovieRating(result.data[0])
   } else {
     // Sort results by closest match
-    function matchQuality(title, year, originalTitle) {
-      if(title == current.query && year == current.year) {
-        return 105 + year;
+    function matchQuality (title, year, originalTitle) {
+      if (title === current.query && year === current.year) {
+        return 105 + year
       }
-      if(originalTitle && originalTitle == current.query && year == current.year) {
-        return 104 + year;
+      if (originalTitle && originalTitle === current.query && year === current.year) {
+        return 104 + year
       }
-      if(title == current.query && current.year) {
-        return 103 - Math.abs(year - current.year);
+      if (title === current.query && current.year) {
+        return 103 - Math.abs(year - current.year)
       }
-      if(originalTitle && originalTitle == current.query && current.year) {
-        return 102 - Math.abs(year - current.year);
+      if (originalTitle && originalTitle === current.query && current.year) {
+        return 102 - Math.abs(year - current.year)
       }
-      if(title.replace(/\(.+\)/, "").trim() == current.query && current.year) {
-        return 101 - Math.abs(year - current.year);
+      if (title.replace(/\(.+\)/, '').trim() === current.query && current.year) {
+        return 101 - Math.abs(year - current.year)
       }
-      if(originalTitle && originalTitle.replace(/\(.+\)/, "").trim() == current.query && current.year) {
-        return 100 - Math.abs(year - current.year);
+      if (originalTitle && originalTitle.replace(/\(.+\)/, '').trim() === current.query && current.year) {
+        return 100 - Math.abs(year - current.year)
       }
-      if(title == current.query) {
-        return 12;
+      if (title === current.query) {
+        return 12
       }
-      if(originalTitle && originalTitle == current.query) {
-        return 11;
+      if (originalTitle && originalTitle === current.query) {
+        return 11
       }
-      if(title.replace(/\(.+\)/, "").trim() == current.query) {
-        return 10;
+      if (title.replace(/\(.+\)/, '').trim() === current.query) {
+        return 10
       }
-      if(originalTitle && originalTitle.replace(/\(.+\)/, "").trim() == current.query) {
-        return 9;
+      if (originalTitle && originalTitle.replace(/\(.+\)/, '').trim() === current.query) {
+        return 9
       }
-      if(title.startsWith(current.query)) {
-        return 8;
+      if (title.startsWith(current.query)) {
+        return 8
       }
-      if(originalTitle && originalTitle.startsWith(current.query)) {
-        return 7;
+      if (originalTitle && originalTitle.startsWith(current.query)) {
+        return 7
       }
-      if(current.query.indexOf(title) != -1) {
-        return 6;
+      if (current.query.indexOf(title) !== -1) {
+        return 6
       }
-      if(originalTitle && current.query.indexOf(originalTitle) != -1) {
-        return 5;
+      if (originalTitle && current.query.indexOf(originalTitle) !== -1) {
+        return 5
       }
-      if(title.indexOf(current.query) != -1) {
-        return 4;
+      if (title.indexOf(current.query) !== -1) {
+        return 4
       }
-      if(originalTitle && originalTitle.indexOf(current.query) != -1) {
-        return 3;
+      if (originalTitle && originalTitle.indexOf(current.query) !== -1) {
+        return 3
       }
-      if(current.query.toLowerCase().indexOf(title.toLowerCase()) != -1) {
-        return 2;
+      if (current.query.toLowerCase().indexOf(title.toLowerCase()) !== -1) {
+        return 2
       }
-      if(title.toLowerCase().indexOf(current.query.toLowerCase()) != -1) {
-        return 1;
+      if (title.toLowerCase().indexOf(current.query.toLowerCase()) !== -1) {
+        return 1
       }
-      return 0;
+      return 0
     }
 
-    result.data.sort(function(a,b) {
-      if(!a.hasOwnProperty('matchQuality')) {
-        a.matchQuality = matchQuality(a.name, a.releaseYear, a.originalName);
+    result.data.sort(function (a, b) {
+      if (!a.hasOwnProperty('matchQuality')) {
+        a.matchQuality = matchQuality(a.name, a.releaseYear, a.originalName)
       }
-      if(!b.hasOwnProperty('matchQuality')) {
-        b.matchQuality = matchQuality(b.name, b.releaseYear, b.originalName);
+      if (!b.hasOwnProperty('matchQuality')) {
+        b.matchQuality = matchQuality(b.name, b.releaseYear, b.originalName)
       }
 
-      return b.matchQuality - a.matchQuality;
-    });
+      return b.matchQuality - a.matchQuality
+    })
 
-    if(!forceList && result.data.length > 1 && result.data[0].matchQuality > 100 && result.data[1].matchQuality < result.data[0].matchQuality) {
-      loadMovieRating(result.data[0]);
+    if (!forceList && result.data.length > 1 && result.data[0].matchQuality > 100 && result.data[1].matchQuality < result.data[0].matchQuality) {
+      loadMovieRating(result.data[0])
     } else {
-      showMovieList(result.data, new Date(response.time));
+      showMovieList(result.data, new Date(response.time))
     }
   }
 }
 
-
-function showMovieList(arr, time) {
+function showMovieList (arr, time) {
   // Show a small box in the right lower corner
-  $("#mcdiv321letterboxd").remove();
-  let main,div;
-  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body);
+  $('#mcdiv321letterboxd').remove()
+  let main, div
+  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
-    position:"fixed",
-    bottom :0,
+    position: 'fixed',
+    bottom: 0,
     right: 0,
     minWidth: 100,
-    maxHeight: "95%",
-    overflow: "auto",
-    backgroundColor: "#fff",
-    border: "2px solid #bbb",
-    borderRadius:" 6px",
-    boxShadow: "0 0 3px 3px rgba(100, 100, 100, 0.2)",
-    color: "#000",
-    padding:" 3px",
-    zIndex: "5010001",
-    fontFamily : "Helvetica,Arial,sans-serif"
-  });
+    maxHeight: '95%',
+    overflow: 'auto',
+    backgroundColor: '#fff',
+    border: '2px solid #bbb',
+    borderRadius: ' 6px',
+    boxShadow: '0 0 3px 3px rgba(100, 100, 100, 0.2)',
+    color: '#000',
+    padding: ' 3px',
+    zIndex: '5010001',
+    fontFamily: 'Helvetica,Arial,sans-serif'
+  })
 
-  var imgFrame = function imgFrameFct(image125, scale) {
-    if(!image125) {
+  const imgFrame = function imgFrameFct (image125, scale) {
+    if (!image125) {
       return
     }
-    const id = 'iframeimg'+Math.random()
-    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:'+(40.0*scale-40.0)+'%; margin-left:'+(40.0*scale-40.0)+'%; transform:scale('+scale+'); transform-origin:bottom right"></iframe> '
-    html += '<div style="position:absolute;top:0px;left:0px;width:'+(180.0*scale-45.0)+'px;height:'+(180.0*scale-25)+'px"></div> '
+    const id = 'iframeimg' + Math.random()
+    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:' + (40.0 * scale - 40.0) + '%; margin-left:' + (40.0 * scale - 40.0) + '%; transform:scale(' + scale + '); transform-origin:bottom right"></iframe> '
+    html += '<div style="position:absolute;top:0px;left:0px;width:' + (180.0 * scale - 45.0) + 'px;height:' + (180.0 * scale - 25) + 'px"></div> '
     GM.xmlHttpRequest({
-      method: "GET",
+      method: 'GET',
       url: baseURL + image125,
-      onload: function(response) {
-        const html = '<base href="' + baseURL +'">' + response.responseText
-        document.getElementById(id).src = "data:text/html;charset=utf-8," + escape(html)
+      onload: function (response) {
+        const html = '<base href="' + baseURL + '">' + response.responseText
+        document.getElementById(id).src = 'data:text/html;charset=utf-8,' + escape(html)
       }
     })
     return html
   }
 
   // First result
-  let first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle?' ['+arr[0].originalTitle+']':'') + (arr[0].releaseYear?" (" + arr[0].releaseYear + ")":"") + "</div></a></div>").click(selectMovie).appendTo(main);
-  first[0].dataset["movie"] = JSON.stringify(arr[0])
+  const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(main)
+  first[0].dataset.movie = JSON.stringify(arr[0])
 
   // Shall the following results be collapsed by default?
-  if((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
-    let a = $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function() { more.css("display", "block"); this.parentNode.removeChild(this); });
-    let more = div = $("<div style=\"display:none\"></div>").appendTo(main);
+  if ((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
+    $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function () { more.css('display', 'block'); this.parentNode.removeChild(this) })
+    const more = div = $('<div style="display:none"></div>').appendTo(main)
   }
 
   // More results
-  for(let i = 1; i < arr.length; i++) {
-    let entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle?' ['+arr[i].originalTitle+']':'') + (arr[0].releaseYear?" (" + arr[0].releaseYear + ")":"") + "</div></a></div>").click(selectMovie).appendTo(div);
-    entry[0].dataset["movie"] = JSON.stringify(arr[i])
+  for (let i = 1; i < arr.length; i++) {
+    const entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle ? ' [' + arr[i].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
+    entry[0].dataset.movie = JSON.stringify(arr[i])
   }
 
   // Footer
-  let sub = $("<div></div>").appendTo(main);
-  $('<time style="color:#789; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
-  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace("{query}", encodeURIComponent(current.query)) + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub);
-  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function() {
-    document.body.removeChild(this.parentNode.parentNode);
-  });
-
+  const sub = $('<div></div>').appendTo(main)
+  $('<time style="color:#789; font-size: 11px;" datetime="' + time + '" title="' + time.toLocaleTimeString() + ' ' + time.toLocaleDateString() + '">' + minutesSince(time) + '</time>').appendTo(sub)
+  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace('{query}', encodeURIComponent(current.query)) + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub)
+  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function () {
+    document.body.removeChild(this.parentNode.parentNode)
+  })
 }
 
-function selectMovie(ev) {
+function selectMovie (ev) {
   ev.preventDefault()
-  $("#mcdiv321letterboxd").html("Loading...")
+  $('#mcdiv321letterboxd').html('Loading...')
 
   const data = JSON.parse(this.dataset.movie)
 
@@ -410,78 +405,77 @@ function selectMovie(ev) {
   addToWhiteList(data.url)
 }
 
-async function loadMovieRating(data) {
+async function loadMovieRating (data) {
   // Load page from letterboxd
 
-  if("name" in data) {
-    current.query = data.name;
+  if ('name' in data) {
+    current.query = data.name
   }
-  if("releaseYear" in data) {
-    current.year = data.releaseYear;
+  if ('releaseYear' in data) {
+    current.year = data.releaseYear
   }
 
-  const url = baseURL_ratingHistogram.replace("{url}", data.url)
+  const url = baseURL_ratingHistogram.replace('{url}', data.url)
 
-  let cache = JSON.parse(await GM.getValue("cache","{}"));
+  const cache = JSON.parse(await GM.getValue('cache', '{}'))
 
   // Delete cached values, that are expired
-  for(var prop in cache) {
-    if((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours*60*60*1000) {
-      delete cache[prop];
+  for (const prop in cache) {
+    if ((new Date()).getTime() - (new Date(cache[prop].time)).getTime() > cacheExpireAfterHours * 60 * 60 * 1000) {
+      delete cache[prop]
     }
   }
 
   // Check cache or request new content
-  if(url in cache) {
+  if (url in cache) {
     // Use cached response
-    showMovieRating(cache[url], data.url, data);
+    showMovieRating(cache[url], data.url, data)
   } else {
     GM.xmlHttpRequest({
-      method: "GET",
+      method: 'GET',
       url: url,
-      onload: function(response) {
+      onload: function (response) {
         // Save to chache
-        response.time = (new Date()).toJSON();
+        response.time = (new Date()).toJSON()
 
         // Chrome fix: Otherwise JSON.stringify(cache) omits responseText
-        var newobj = {};
-        for(var key in response) {
-          newobj[key] = response[key];
+        const newobj = {}
+        for (const key in response) {
+          newobj[key] = response[key]
         }
-        newobj.responseText = response.responseText;
+        newobj.responseText = response.responseText
 
+        cache[url] = newobj
 
-        cache[url] = newobj;
+        GM.setValue('cache', JSON.stringify(cache))
 
-        GM.setValue("cache",JSON.stringify(cache));
-
-        showMovieRating(newobj, data.url, data);
+        showMovieRating(newobj, data.url, data)
       },
-      onerror: function(response) {
-        console.log("GM.xmlHttpRequest Error: "+response.status+"\nURL: "+requestURL+"\nResponse:\n"+response.responseText);
-      },
-    });
+      onerror: function (response) {
+        console.log('GM.xmlHttpRequest Error: ' + response.status + '\nURL: ' + url + '\nResponse:\n' + response.responseText)
+      }
+    })
   }
 }
 
-function showMovieRating(response, letterboxdUrl, otherData) {
+function showMovieRating (response, letterboxdUrl, otherData) {
   // Show a small box in the right lower corner
   const time = new Date(response.time)
 
-  $("#mcdiv321letterboxd").remove();
-  let main,div;
-  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body);
+  $('#mcdiv321letterboxd').remove()
+  let main, div
+  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
-    position:"fixed",
-    bottom :0,
+    position: 'fixed',
+    bottom: 0,
     right: 0,
     width: 230,
     minHeight: 44,
-    color: "#789",
-    padding:" 3px",
-    zIndex: "5010001",
-    fontFamily : "Helvetica,Arial,sans-serif"
-  });
+    color: '#789',
+    padding: ' 3px',
+    zIndex: '5010001',
+    fontFamily: 'Helvetica,Arial,sans-serif'
+  })
 
   const CSS = `<style>
 .rating {
@@ -686,33 +680,33 @@ function showMovieRating(response, letterboxdUrl, otherData) {
 
 </style>`
 
-  $(CSS).appendTo(main);
-  let section = $(fixLetterboxdURLs(response.responseText)).appendTo(main)
+  $(CSS).appendTo(main)
+  const section = $(fixLetterboxdURLs(response.responseText)).appendTo(main)
 
-  section.find("h2").remove();
+  section.find('h2').remove()
 
   let identName = current.query
-  let identYear = current.year?' ('+current.year+')':''
+  let identYear = current.year ? ' (' + current.year + ')' : ''
   let identOriginalName = ''
   let identDirector = ''
-  if(otherData) {
-    if('name' in otherData && otherData.name) {
+  if (otherData) {
+    if ('name' in otherData && otherData.name) {
       identName = otherData.name
     }
-    if('year' in otherData && otherData.year) {
-      identYear = ' ('+otherData.year+')'
+    if ('year' in otherData && otherData.year) {
+      identYear = ' (' + otherData.year + ')'
     }
-    if('originalName' in otherData && otherData.originalName) {
-      identOriginalName = ' "'+otherData.originalName+'"'
+    if ('originalName' in otherData && otherData.originalName) {
+      identOriginalName = ' "' + otherData.originalName + '"'
     }
-    if('directors' in otherData) {
+    if ('directors' in otherData) {
       identDirector = []
-      for(let i = 0; i < otherData.directors.length; i++) {
-        if('name' in otherData.directors[i]) {
-            identDirector.push(otherData.directors[i].name)
+      for (let i = 0; i < otherData.directors.length; i++) {
+        if ('name' in otherData.directors[i]) {
+          identDirector.push(otherData.directors[i].name)
         }
       }
-      if(identDirector) {
+      if (identDirector) {
         identDirector = '<br><span style="font-size:10px">Dir. ' + identDirector.join(', ') + '</span>'
       } else {
         identDirector = ''
@@ -721,184 +715,184 @@ function showMovieRating(response, letterboxdUrl, otherData) {
   }
 
   // Footer
-  let sub = $('<div class="footer"></div>').appendTo(main);
+  const sub = $('<div class="footer"></div>').appendTo(main)
   $('<span style="color:#789; font-size: 11px">' + identName + identOriginalName + identYear + identDirector + '</span>').appendTo(sub)
   $('<br>').appendTo(sub)
-  $('<time style="color:#789; font-size: 11px;" datetime="'+time+'" title="'+time.toLocaleTimeString()+" "+time.toLocaleDateString()+'">'+minutesSince(time)+'</time>').appendTo(sub);
-  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL+letterboxdUrl + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub);
-  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#10062;</span>').appendTo(sub).click(function() {
+  $('<time style="color:#789; font-size: 11px;" datetime="' + time + '" title="' + time.toLocaleTimeString() + ' ' + time.toLocaleDateString() + '">' + minutesSince(time) + '</time>').appendTo(sub)
+  $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL + letterboxdUrl + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub)
+  $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#10062;</span>').appendTo(sub).click(function () {
     document.getElementById('mcdiv321letterboxd').remove()
-  });
-  $('<span title="Wrong movie!" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#128581;</span>').appendTo(sub).click(function() {
+  })
+  $('<span title="Wrong movie!" style="cursor:pointer; float:right; color:#789; font-size: 11px">&#128581;</span>').appendTo(sub).click(function () {
     removeFromWhiteList()
-    searchMovie(current.query, current.type, current.year, true);
-  });
+    searchMovie(current.query, current.type, current.year, true)
+  })
   $('<span style="clear:right">').appendTo(sub)
 }
 
-
-var Always = () => true;
-var sites = {
-  'googleplay' : {
-    host : ["play.google.com"],
-    condition : Always,
-    products : [
-    {
-      condition : () => ~document.location.href.indexOf("/movies/details/"),
-      type : "movie",
-      data : () => document.querySelector("*[itemprop=name]").textContent
-    }
+const Always = () => true
+const sites = {
+  googleplay: {
+    host: ['play.google.com'],
+    condition: Always,
+    products: [
+      {
+        condition: () => ~document.location.href.indexOf('/movies/details/'),
+        type: 'movie',
+        data: () => document.querySelector('*[itemprop=name]').textContent
+      }
     ]
   },
-  'imdb' : {
-    host : ["imdb.com"],
-    condition : () => !~document.location.pathname.indexOf("/mediaviewer") && !~document.location.pathname.indexOf("/mediaindex") && !~document.location.pathname.indexOf("/videoplayer"),
-    products : [
-    {
-      condition: function () {
-        const e = document.querySelector("meta[property='og:type']")
-        if (e && e.content === 'video.movie') {
-          return true
-        } else if(document.querySelector('div[data-testid="hero-title-block__title"]') && !document.querySelector('div[data-testid="hero-subnav-bar-left-block"] a[href*="episodes/"]')) {
+  imdb: {
+    host: ['imdb.com'],
+    condition: () => !~document.location.pathname.indexOf('/mediaviewer') && !~document.location.pathname.indexOf('/mediaindex') && !~document.location.pathname.indexOf('/videoplayer'),
+    products: [
+      {
+        condition: function () {
+          const e = document.querySelector("meta[property='og:type']")
+          if (e && e.content === 'video.movie') {
+            return true
+          } else if (document.querySelector('[data-testid="hero-title-block__title"]') && !document.querySelector('[data-testid="hero-subnav-bar-left-block"] a[href*="episodes/"]')) {
           // New design 2020-12
-          return true
-        }
-        return false
-      },
-      type : "movie",
-      data : function() {
-        var year = null;
-        var name = null;
-        var jsonld = null;
-        if(document.querySelector('div[data-testid="hero-title-block__title"]')) {
+            return true
+          }
+          return false
+        },
+        type: 'movie',
+        data: function () {
+          let year = null
+          let name = null
+          let jsonld = null
+          if (document.querySelector('[data-testid="hero-title-block__title"]')) {
           // New design 2020-12
-          let m = document.title.match(/\s+\((\d{4})\)/);
-          if(m) {
-            year = parseInt(m[1]);
+            const m = document.title.match(/\s+\((\d{4})\)/)
+            if (m) {
+              year = parseInt(m[1])
+            }
+            return [document.querySelector('[data-testid="hero-title-block__title"]').textContent, year]
           }
-          return [document.querySelector('div[data-testid="hero-title-block__title"]').textContent, year]
-        }
-        if(document.querySelector("#titleYear")) {
-          year = parseInt(document.querySelector("#titleYear a").firstChild.textContent);
-        }
-        if(document.querySelector("meta[property='og:title']") && document.querySelector("meta[property='og:title']").content) { // English title, this is the prefered title for Rottentomatoes' search
-          name = document.querySelector("meta[property='og:title']").content.trim()
-          if (name.indexOf('- IMDb') !== -1) {
-            name = name.replace('- IMDb', '').trim()
+          if (document.querySelector('#titleYear')) {
+            year = parseInt(document.querySelector('#titleYear a').firstChild.textContent)
           }
-          name = name.replace(/\(\d{4}\)/, '').trim()
-        }
-        if(document.querySelector('script[type="application/ld+json"]')) { // Original title and release year
-           jsonld = parseLDJSON(["name", "datePublished"]);
-           if (name == null)
-             name = jsonld[0];
-           if (year == null)
-             year = parseInt(jsonld[1].match(/\d{4}/)[0]);
-        }
-        if(name != null && year != null) {
-          return [name, year]; // Use original title
-        }
-        if(document.querySelector(".originalTitle") && document.querySelector(".title_wrapper h1")) {
-           return [document.querySelector(".title_wrapper h1").firstChild.data.trim(), year] // Use localized title
-        } else if(document.querySelector("h1[itemprop=name]")) { // Movie homepage (New design 2015-12)
-          return [document.querySelector("h1[itemprop=name]").firstChild.textContent.trim(), year];
-        } else if(document.querySelector("*[itemprop=name] a") && document.querySelector("*[itemprop=name] a").firstChild.data) { // Subpage of a move
-          return [document.querySelector("*[itemprop=name] a").firstChild.data.trim(), year];
-        } else if(document.querySelector(".title-extra[itemprop=name]")) { // Movie homepage: sub-/alternative-/original title
-          return [document.querySelector(".title-extra[itemprop=name]").firstChild.textContent.replace(/\"/g,"").trim(), year];
-        } else { // Movie homepage (old design)
-          return document.querySelector("*[itemprop=name]").firstChild.textContent.trim();
+          if (document.querySelector("meta[property='og:title']") && document.querySelector("meta[property='og:title']").content) { // English title, this is the prefered title for Rottentomatoes' search
+            name = document.querySelector("meta[property='og:title']").content.trim()
+            if (name.indexOf('- IMDb') !== -1) {
+              name = name.replace('- IMDb', '').trim()
+            }
+            name = name.replace(/\(\d{4}\)/, '').trim()
+          }
+          if (document.querySelector('script[type="application/ld+json"]')) { // Original title and release year
+            jsonld = parseLDJSON(['name', 'datePublished'])
+            if (name === null) { name = jsonld[0] }
+            if (year === null) { year = parseInt(jsonld[1].match(/\d{4}/)[0]) }
+          }
+          if (name !== null && year !== null) {
+            return [name, year] // Use original title
+          }
+          if (document.querySelector('.originalTitle') && document.querySelector('.title_wrapper h1')) {
+            return [document.querySelector('.title_wrapper h1').firstChild.data.trim(), year] // Use localized title
+          } else if (document.querySelector('h1[itemprop=name]')) { // Movie homepage (New design 2015-12)
+            return [document.querySelector('h1[itemprop=name]').firstChild.textContent.trim(), year]
+          } else if (document.querySelector('*[itemprop=name] a') && document.querySelector('*[itemprop=name] a').firstChild.data) { // Subpage of a move
+            return [document.querySelector('*[itemprop=name] a').firstChild.data.trim(), year]
+          } else if (document.querySelector('.title-extra[itemprop=name]')) { // Movie homepage: sub-/alternative-/original title
+            return [document.querySelector('.title-extra[itemprop=name]').firstChild.textContent.replace(/"/g, '').trim(), year]
+          } else if (document.querySelector('*[itemprop=name]')) { // Movie homepage (old design)
+            return [document.querySelector('*[itemprop=name]').firstChild.textContent.trim(), year]
+          } else {
+            const rm = document.title.match(/(.+?)\s+(\(\d+\))? - IMDb/)
+            return [rm[1], rm[2]]
+          }
         }
       }
-    }
     ]
   },
-  'metacritic' : {
-    host : ["www.metacritic.com"],
-    condition : () => document.querySelector("meta[property='og:type']"),
-    products : [{
-      condition : () => document.querySelector("meta[property='og:type']").content == "video.movie",
-      type : "movie",
-      data : function() {
-        var year = null;
-        if(document.querySelector(".release_year")) {
-          year = parseInt(document.querySelector(".release_year").firstChild.textContent);
-        } else if(document.querySelector(".release_data .data")) {
-          year = document.querySelector(".release_data .data").textContent.match(/(\d{4})/)[1]
+  metacritic: {
+    host: ['www.metacritic.com'],
+    condition: () => document.querySelector("meta[property='og:type']"),
+    products: [{
+      condition: () => document.querySelector("meta[property='og:type']").content === 'video.movie',
+      type: 'movie',
+      data: function () {
+        let year = null
+        if (document.querySelector('.release_year')) {
+          year = parseInt(document.querySelector('.release_year').firstChild.textContent)
+        } else if (document.querySelector('.release_data .data')) {
+          year = document.querySelector('.release_data .data').textContent.match(/(\d{4})/)[1]
         }
 
         return [document.querySelector("meta[property='og:title']").content, year]
       }
     }]
   },
-  'amazon' : {
-    host : ["amazon."],
-    condition : Always,
-    products : [{
-      condition : () => document.querySelector('[data-automation-id=title]'),
-      type : "movie",
-      data : () => document.querySelector('[data-automation-id=title]').textContent.trim()
-    }]
-  },
-  'BoxOfficeMojo' : {
-    host : ["boxofficemojo.com"],
-    condition : () => Always,
-    products : [
-    {
-      condition: () => document.location.pathname.startsWith('/release/'),
+  amazon: {
+    host: ['amazon.'],
+    condition: Always,
+    products: [{
+      condition: () => document.querySelector('[data-automation-id=title]'),
       type: 'movie',
-      data: function() {
-        let year = null
-        let cells = document.querySelectorAll("#body .mojo-summary-values .a-section span");
-        for(let i = 0; i< cells.length; i++) {
-          if(~cells[i].innerText.indexOf("Release Date")) {
-            year = parseInt(cells[i].nextElementSibling.textContent.match(/\d{4}/)[0]);
-            break;
-          }
-        }
-        return [document.querySelector('meta[name=title]').content, year]
-      }
-    },
-    {
-      condition : () => ~document.location.search.indexOf("id=") && document.querySelector("#body table:nth-child(2) tr:first-child b"),
-      type : "movie",
-      data : function() {
-        var year = null;
-        try {
-        var tds = document.querySelectorAll("#body table:nth-child(2) tr:first-child table table table td");
-        for(var i = 0; i< tds.length; i++) {
-          if(~tds[i].innerText.indexOf("Release Date")) {
-            year = parseInt(tds[i].innerText.match(/\d{4}/)[0]);
-            break;
-          }
-        }
-        } catch(e) { }
-        return [document.querySelector("#body table:nth-child(2) tr:first-child b").firstChild.data, year];
-      }
+      data: () => document.querySelector('[data-automation-id=title]').textContent.trim()
     }]
   },
-  'AllMovie' : {
-    host : ["allmovie.com"],
-    condition : () => document.querySelector("h2[itemprop=name].movie-title"),
-    products : [{
-      condition : () => document.querySelector("h2[itemprop=name].movie-title"),
-      type : "movie",
-      data : () => document.querySelector("h2[itemprop=name].movie-title").firstChild.data.trim()
-    }]
-  },
-  'en.wikipedia' : {
-    host : ["en.wikipedia.org"],
-    condition : Always,
-    products : [{
-      condition : function() {
-        if(!document.querySelector(".infobox .summary")) {
-          return false;
+  BoxOfficeMojo: {
+    host: ['boxofficemojo.com'],
+    condition: () => Always,
+    products: [
+      {
+        condition: () => document.location.pathname.startsWith('/release/'),
+        type: 'movie',
+        data: function () {
+          let year = null
+          const cells = document.querySelectorAll('#body .mojo-summary-values .a-section span')
+          for (let i = 0; i < cells.length; i++) {
+            if (~cells[i].innerText.indexOf('Release Date')) {
+              year = parseInt(cells[i].nextElementSibling.textContent.match(/\d{4}/)[0])
+              break
+            }
+          }
+          return [document.querySelector('meta[name=title]').content, year]
         }
-        var r = /\d\d\d\d films/;
-        return $("#catlinks a").filter((i,e) => e.firstChild.data.match(r)).length;
       },
-      type : "movie",
-      data : () => document.querySelector(".infobox .summary").firstChild.data
+      {
+        condition: () => ~document.location.search.indexOf('id=') && document.querySelector('#body table:nth-child(2) tr:first-child b'),
+        type: 'movie',
+        data: function () {
+          let year = null
+          try {
+            const tds = document.querySelectorAll('#body table:nth-child(2) tr:first-child table table table td')
+            for (let i = 0; i < tds.length; i++) {
+              if (~tds[i].innerText.indexOf('Release Date')) {
+                year = parseInt(tds[i].innerText.match(/\d{4}/)[0])
+                break
+              }
+            }
+          } catch (e) { }
+          return [document.querySelector('#body table:nth-child(2) tr:first-child b').firstChild.data, year]
+        }
+      }]
+  },
+  AllMovie: {
+    host: ['allmovie.com'],
+    condition: () => document.querySelector('h2[itemprop=name].movie-title'),
+    products: [{
+      condition: () => document.querySelector('h2[itemprop=name].movie-title'),
+      type: 'movie',
+      data: () => document.querySelector('h2[itemprop=name].movie-title').firstChild.data.trim()
+    }]
+  },
+  'en.wikipedia': {
+    host: ['en.wikipedia.org'],
+    condition: Always,
+    products: [{
+      condition: function () {
+        if (!document.querySelector('.infobox .summary')) {
+          return false
+        }
+        const r = /\d\d\d\d films/
+        return $('#catlinks a').filter((i, e) => e.firstChild.data.match(r)).length
+      },
+      type: 'movie',
+      data: () => document.querySelector('.infobox .summary').firstChild.data
     }]
   },
   fandango: {
@@ -910,48 +904,48 @@ var sites = {
       data: () => document.querySelector("meta[property='og:title']").content.match(/(.+?)\s+\(\d{4}\)/)[1].trim()
     }]
   },
-  'themoviedb' : {
-    host : ["themoviedb.org"],
-    condition : () => document.querySelector("meta[property='og:type']"),
-    products : [{
-      condition : () => document.querySelector("meta[property='og:type']").content == "movie",
-      type : "movie",
-      data : function() {
-        var year = null;
+  themoviedb: {
+    host: ['themoviedb.org'],
+    condition: () => document.querySelector("meta[property='og:type']"),
+    products: [{
+      condition: () => document.querySelector("meta[property='og:type']").content === 'movie',
+      type: 'movie',
+      data: function () {
+        let year = null
         try {
-          year = parseInt(document.querySelector(".release_date").innerText.match(/\d{4}/)[0]);
-        } catch(e) {}
+          year = parseInt(document.querySelector('.release_date').innerText.match(/\d{4}/)[0])
+        } catch (e) {}
 
         return [document.querySelector("meta[property='og:title']").content, year]
       }
     }]
   },
-  'rottentomatoes' : {
-    host : ["rottentomatoes.com"],
-    condition : Always,
-    products : [{
-      condition : () => document.location.pathname.startsWith("/m/"),
-      type : "movie",
-      data : () => document.querySelector("h1").firstChild.textContent
+  rottentomatoes: {
+    host: ['rottentomatoes.com'],
+    condition: Always,
+    products: [{
+      condition: () => document.location.pathname.startsWith('/m/'),
+      type: 'movie',
+      data: () => document.querySelector('h1').firstChild.textContent
     }
     ]
   },
-  'nme' : {
-    host : ["nme.com"],
-    condition : () => document.location.pathname.startsWith("/reviews/"),
-    products : [    {
-      condition : () => document.location.pathname.startsWith("/reviews/movie/"),
-      type : "movie",
-      data : function() {
-        var year = null;
+  nme: {
+    host: ['nme.com'],
+    condition: () => document.location.pathname.startsWith('/reviews/'),
+    products: [{
+      condition: () => document.location.pathname.startsWith('/reviews/movie/'),
+      type: 'movie',
+      data: function () {
+        let year = null
         try {
-          year = parseInt(document.querySelector("*[itemprop=datePublished]").content.match(/\d{4}/)[0])
-        } catch(e) {}
+          year = parseInt(document.querySelector('*[itemprop=datePublished]').content.match(/\d{4}/)[0])
+        } catch (e) {}
 
         try {
-          return [ document.querySelector(".title-primary").textContent.match(/‘(.+?)’/)[1] , year ];
-        } catch(e) {
-          return [ document.querySelector("h1").textContent.match(/:\s*(.+)/)[1].trim() , year ];
+          return [document.querySelector('.title-primary').textContent.match(/‘(.+?)’/)[1], year]
+        } catch (e) {
+          return [document.querySelector('h1').textContent.match(/:\s*(.+)/)[1].trim(), year]
         }
       }
     }]
@@ -965,67 +959,77 @@ var sites = {
       data: () => document.getElementById('series_title').firstChild.data.trim()
     }]
   },
-  'itunes' : {
-    host : ["itunes.apple.com"],
-    condition : Always,
-    products : [{
-      condition : () => ~document.location.href.indexOf("/movie/"),
-      type : "movie",
-      data : () => parseLDJSON("name", (j) => (j["@type"] == "Movie"))
+  itunes: {
+    host: ['itunes.apple.com'],
+    condition: Always,
+    products: [{
+      condition: () => ~document.location.href.indexOf('/movie/'),
+      type: 'movie',
+      data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
     }]
   },
-  'TVHoard' : {
-    host : ['tvhoard.com'],
-    condition : Always,
-    products : [{
-      condition : () => document.location.pathname.split("/").length === 3 && document.location.pathname.split('/')[1] === 'titles' && !document.querySelector('app-root title-secondary-details-panel .seasons') && document.querySelector('app-root title-page-container h1.title a'),
-      type : 'movie',
-    data : () => [document.querySelector('app-root title-page-container h1.title a').textContent.trim(), document.querySelector('app-root title-page-container title-primary-details-panel h1.title .year').textContent.trim().substring(1,5)]
+  TVHoard: {
+    host: ['tvhoard.com'],
+    condition: Always,
+    products: [{
+      condition: () => document.location.pathname.split('/').length === 3 && document.location.pathname.split('/')[1] === 'titles' && !document.querySelector('app-root title-secondary-details-panel .seasons') && document.querySelector('app-root title-page-container h1.title a'),
+      type: 'movie',
+      data: () => [document.querySelector('app-root title-page-container h1.title a').textContent.trim(), document.querySelector('app-root title-page-container title-primary-details-panel h1.title .year').textContent.trim().substring(1, 5)]
     }]
   },
+  RlsBB: {
+    host: ['rlsbb.ru'],
+    condition: () => document.querySelectorAll('.post').length === 1,
+    products: [
+      {
+        condition: () => document.querySelector('.post .postSubTitle a[href*="/category/movies/"]'),
+        type: 'movie',
+        data: () => document.querySelector('h1.postTitle').textContent.match(/(.+?)\s+\d{4}/)[1].trim()
+      }
+    ]
+  }
 
-};
+}
 
-
-function main() {
-  var dataFound = false;
-  for(var name in sites) {
-    var site = sites[name];
-    if(site.host.some(function(e) {return ~this.indexOf(e)}, document.location.hostname) && site.condition()) {
-      for(var i = 0; i < site.products.length; i++) {
-        if(site.products[i].condition()) {
+function main () {
+  let dataFound = false
+  for (const name in sites) {
+    const site = sites[name]
+    if (site.host.some(function (e) { return ~this.indexOf(e) }, document.location.hostname) && site.condition()) {
+      for (let i = 0; i < site.products.length; i++) {
+        if (site.products[i].condition()) {
           // Try to retrieve item name from page
-          var data;
+          let data
           try {
-            data = site.products[i].data();
-          } catch(e) {
-            data = false;
-            console.log("Letterboxd Error:")
-            console.log(e);
+            data = site.products[i].data()
+          } catch (e) {
+            data = false
+            console.error(`ShowLetterboxd: Error in data() of site='${name}', type='${site.products[i].type}'`)
+            console.error(e)
           }
-          if(data) {
-            if(Array.isArray(data) && data[1]) {
-              searchMovie(data[0].trim(), site.products[i].type, parseInt(data[1]));
+          if (data) {
+            if (Array.isArray(data) && data[1]) {
+              searchMovie(data[0].trim(), site.products[i].type, parseInt(data[1]))
             } else {
-              searchMovie(data.trim(), site.products[i].type);
+              searchMovie(data.trim(), site.products[i].type)
             }
             dataFound = true
           }
-          break;
+          break
         }
       }
-      break;
+      break
     }
   }
-  return dataFound;
+  return dataFound
 }
 
-async function adaptForRottentomatoesScript() {
-  if(!document.getElementById('mcdiv321rotten') || !document.getElementById('mcdiv321letterboxd')) {
+async function adaptForRottentomatoesScript () {
+  if (!document.getElementById('mcdiv321rotten') || !document.getElementById('mcdiv321letterboxd')) {
     return
   }
   const h = parseInt(document.getElementById('mcdiv321rotten').clientHeight) + 5
-  if(document.getElementById('mcdiv321letterboxd').dataset.adapted && parseInt(document.getElementById('mcdiv321letterboxd').dataset.adapted) == h) {
+  if (document.getElementById('mcdiv321letterboxd').dataset.adapted && parseInt(document.getElementById('mcdiv321letterboxd').dataset.adapted) === h) {
     return
   }
   const letterboxd = document.getElementById('mcdiv321letterboxd')
@@ -1033,37 +1037,36 @@ async function adaptForRottentomatoesScript() {
   document.getElementById('mcdiv321letterboxd').dataset.adapted = h
 }
 
-(function() {
-
-  const firstRunResult = main();
-  var lastLoc = document.location.href;
-  var lastContent = document.body.innerText;
-  var lastCounter = 0;
-  function newpage() {
-    if(lastContent == document.body.innerText && lastCounter < 15) {
-      window.setTimeout(newpage, 500);
-      lastCounter++;
+(function () {
+  const firstRunResult = main()
+  let lastLoc = document.location.href
+  let lastContent = document.body.innerText
+  let lastCounter = 0
+  function newpage () {
+    if (lastContent === document.body.innerText && lastCounter < 15) {
+      window.setTimeout(newpage, 500)
+      lastCounter++
     } else {
       lastContent = document.body.innerText
-      lastCounter = 0;
-      let re = main();
-      if(!re) { // No page matched or no data found
-        window.setTimeout(newpage, 1000);
+      lastCounter = 0
+      const re = main()
+      if (!re) { // No page matched or no data found
+        window.setTimeout(newpage, 1000)
       }
     }
   }
-  window.setInterval(function() {
+  window.setInterval(function () {
     adaptForRottentomatoesScript()
-    if(document.location.href != lastLoc) {
-      lastLoc = document.location.href;
-      $("#mcdiv321letterboxd").remove();
+    if (document.location.href !== lastLoc) {
+      lastLoc = document.location.href
+      $('#mcdiv321letterboxd').remove()
 
-      window.setTimeout(newpage,1000);
+      window.setTimeout(newpage, 1000)
     }
-  },500);
+  }, 500)
 
   if (!firstRunResult) {
     // Initial run had no match, let's try again there may be new content
-    window.setTimeout(main, 2000);
+    window.setTimeout(main, 2000)
   }
-})();
+})()
