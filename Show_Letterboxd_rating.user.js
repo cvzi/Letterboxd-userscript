@@ -11,7 +11,7 @@
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     11
+// @version     12
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -986,7 +986,7 @@ const sites = {
         condition: () => document.querySelector('#post-wrapper .entry-meta a[href*="/category/movies/"]'),
         type: 'movie',
         data: () => document.querySelector('h1.entry-title').textContent.match(/(.+?)\s+\d{4}/)[1].trim()
-      }
+      }]
   },
   showtime: {
     host: ['sho.com'],
@@ -996,7 +996,7 @@ const sites = {
         condition: () => parseLDJSON('@type') === 'Movie',
         type: 'movie',
         data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
-      }
+      }]
   }
 
 }
