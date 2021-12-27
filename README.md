@@ -10,7 +10,7 @@ or
 
 General information about userscripts and how to use them can be found at [openuserjs.org/about/Userscript-Beginners-HOWTO](https://openuserjs.org/about/Userscript-Beginners-HOWTO).
 
-If you already have a userscript extension installed, you can click [here](https://openuserjs.org/install/cuzi/Show_Letterboxd_rating.user.js) to install this script.
+If you already have a userscript extension installed, you can click [here](https://greasyfork.org/scripts/386219-show-letterboxd-rating/code/Show%20Letterboxd%20rating.user.js) to install this script.
 
 
 I develop similar scripts for the [Metacritic](https://www.metacritic.com/) score, see [cvzi/Metacritic-userscript](https://github.com/cvzi/Metacritic-userscript/)  
