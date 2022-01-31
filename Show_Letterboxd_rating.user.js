@@ -11,7 +11,7 @@
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     13
+// @version     14
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -793,11 +793,11 @@ const sites = {
             return [name, year] // Use original title
           }
           if (document.querySelector('.originalTitle') && document.querySelector('.title_wrapper h1')) {
-            return [document.querySelector('.title_wrapper h1').firstChild.data.trim(), year] // Use localized title
+            return [document.querySelector('.title_wrapper h1').firstChild.textContent.trim(), year] // Use localized title
           } else if (document.querySelector('h1[itemprop=name]')) { // Movie homepage (New design 2015-12)
             return [document.querySelector('h1[itemprop=name]').firstChild.textContent.trim(), year]
-          } else if (document.querySelector('*[itemprop=name] a') && document.querySelector('*[itemprop=name] a').firstChild.data) { // Subpage of a move
-            return [document.querySelector('*[itemprop=name] a').firstChild.data.trim(), year]
+          } else if (document.querySelector('*[itemprop=name] a') && document.querySelector('*[itemprop=name] a').firstChild.textContent) { // Subpage of a move
+            return [document.querySelector('*[itemprop=name] a').firstChild.textContent.trim(), year]
           } else if (document.querySelector('.title-extra[itemprop=name]')) { // Movie homepage: sub-/alternative-/original title
             return [document.querySelector('.title-extra[itemprop=name]').firstChild.textContent.replace(/"/g, '').trim(), year]
           } else if (document.querySelector('*[itemprop=name]')) { // Movie homepage (old design)
@@ -870,7 +870,7 @@ const sites = {
               }
             }
           } catch (e) { }
-          return [document.querySelector('#body table:nth-child(2) tr:first-child b').firstChild.data, year]
+          return [document.querySelector('#body table:nth-child(2) tr:first-child b').firstChild.textContent, year]
         }
       }]
   },
@@ -880,7 +880,7 @@ const sites = {
     products: [{
       condition: () => document.querySelector('h2.movie-title'),
       type: 'movie',
-      data: () => document.querySelector('h2.movie-title').firstChild.data.trim()
+      data: () => document.querySelector('h2.movie-title').firstChild.textContent.trim()
     }]
   },
   'en.wikipedia': {
@@ -892,10 +892,10 @@ const sites = {
           return false
         }
         const r = /\d\d\d\d films/
-        return $('#catlinks a').filter((i, e) => e.firstChild.data.match(r)).length
+        return $('#catlinks a').filter((i, e) => e.firstChild.textContent.match(r)).length
       },
       type: 'movie',
-      data: () => document.querySelector('.infobox .summary').firstChild.data
+      data: () => document.querySelector('.infobox .summary').firstChild.textContent
     }]
   },
   fandango: {
@@ -972,7 +972,7 @@ const sites = {
     products: [{
       condition: () => document.location.pathname.startsWith('/movies/'),
       type: 'movie',
-      data: () => document.getElementById('series_title').firstChild.data.trim()
+      data: () => document.getElementById('series_title').firstChild.textContent.trim()
     }]
   },
   itunes: {
