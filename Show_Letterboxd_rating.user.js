@@ -11,7 +11,7 @@
 // @grant       GM.getValue
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
 // @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     12
+// @version     13
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
 // @include     http://www.amazon.com/*
@@ -47,12 +47,14 @@
 // @include     https://www.allmovie.com/movie/*
 // @include     https://en.wikipedia.org/*
 // @include     https://www.fandango.com/*
+// @include     https://www.flixster.com/movie/*
 // @include     https://www.themoviedb.org/movie/*
 // @include     https://www.rottentomatoes.com/m/*
 // @include     https://rottentomatoes.com/m/*
 // @include     http://www.metacritic.com/movie/*
 // @include     https://www.metacritic.com/movie/*
 // @include     https://www.nme.com/reviews/movie/*
+// @include     https://www.nme.com/reviews/film-reviews/*
 // @include     https://itunes.apple.com/*/movie/*
 // @include     https://www.tvhoard.com/*
 // @include     https://thetvdb.com/movies/*
@@ -599,11 +601,11 @@ function showMovieRating (response, letterboxdUrl, otherData) {
     right:0;
     background:none;
     padding:0;
-		color:#789
+    color:#789
 }
 .rating-histogram a:link,.rating-histogram a:visited{
     color:#789;
-		text-decoration:none
+    text-decoration:none
 }
 .rating-histogram a:hover i{
     background-color:#678
@@ -640,7 +642,7 @@ function showMovieRating (response, letterboxdUrl, otherData) {
 }
 .ratings-histogram-chart .all-link.more-link {
     font-size:10px;
-		position:absolute;
+    position:absolute;
     top:0;
     left:180px;
 }
@@ -874,11 +876,11 @@ const sites = {
   },
   AllMovie: {
     host: ['allmovie.com'],
-    condition: () => document.querySelector('h2[itemprop=name].movie-title'),
+    condition: () => document.querySelector('h2.movie-title'),
     products: [{
-      condition: () => document.querySelector('h2[itemprop=name].movie-title'),
+      condition: () => document.querySelector('h2.movie-title'),
       type: 'movie',
-      data: () => document.querySelector('h2[itemprop=name].movie-title').firstChild.data.trim()
+      data: () => document.querySelector('h2.movie-title').firstChild.data.trim()
     }]
   },
   'en.wikipedia': {
@@ -903,6 +905,15 @@ const sites = {
       condition: Always,
       type: 'movie',
       data: () => document.querySelector("meta[property='og:title']").content.match(/(.+?)\s+\(\d{4}\)/)[1].trim()
+    }]
+  },
+  flixster: {
+    host: ['www.flixster.com'],
+    condition: () => Always,
+    products: [{
+      condition: () => parseLDJSON('@type') === 'Movie',
+      type: 'movie',
+      data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
     }]
   },
   themoviedb: {
@@ -935,7 +946,7 @@ const sites = {
     host: ['nme.com'],
     condition: () => document.location.pathname.startsWith('/reviews/'),
     products: [{
-      condition: () => document.location.pathname.startsWith('/reviews/movie/'),
+      condition: () => document.querySelector('.tdb-breadcrumbs a[href*="/reviews/film-reviews"]'),
       type: 'movie',
       data: function () {
         let year = null
@@ -944,9 +955,13 @@ const sites = {
         } catch (e) {}
 
         try {
-          return [document.querySelector('.title-primary').textContent.match(/‘(.+?)’/)[1], year]
+          return [document.title.match(/[‘'](.+?)[’']/)[1], year]
         } catch (e) {
-          return [document.querySelector('h1').textContent.match(/:\s*(.+)/)[1].trim(), year]
+          try {
+            return [document.querySelector('h1.tdb-title-text').textContent.match(/[‘'](.+?)[’']/)[1], year]
+          } catch (e) {
+            return [document.querySelector('h1').textContent.match(/:\s*(.+)/)[1].trim(), year]
+          }
         }
       }
     }]
