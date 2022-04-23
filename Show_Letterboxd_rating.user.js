@@ -346,14 +346,40 @@ function showMovieList (arr, time) {
       return
     }
     const id = 'iframeimg' + Math.random()
+    const mWidth = 180.0 * scale - 45.0
+    const mHeight = 180.0 * scale - 25
     let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:' + (40.0 * scale - 40.0) + '%; margin-left:' + (40.0 * scale - 40.0) + '%; transform:scale(' + scale + '); transform-origin:bottom right"></iframe> '
-    html += '<div style="position:absolute;top:0px;left:0px;width:' + (180.0 * scale - 45.0) + 'px;height:' + (180.0 * scale - 25) + 'px"></div> '
+    html += '<div style="position:absolute;top:0px;left:0px;width:' + mWidth + 'px;height:' + mHeight + 'px"></div> '
     GM.xmlHttpRequest({
       method: 'GET',
       url: baseURL + image125,
       onload: function (response) {
         const html = '<base href="' + baseURL + '">' + response.responseText
-        document.getElementById(id).src = 'data:text/html;charset=utf-8,' + escape(html)
+        if (html.indexOf('empty-poster-')) {
+          const emptyPoster = html.match(/src="(https:\/\/\S+)"/)[1]
+          const width = html.match(/data-image-width="(\d+)"/)[1]
+          const height = html.match(/data-image-height="(\d+)"/)[1]
+          const filmId = html.match(/data-film-id="(\d+)"/)[1]
+          const cacheBustingKey = html.match(/data-cache-busting-key="(\w+)"/)[1]
+          const dashTitle = html.match(/data-target-link="\/film\/(\S+)\/"/)[1]
+          const slashFilmId = filmId.toString().split('').join('/')
+
+          const emptyImg = new Image()
+          emptyImg.src = emptyPoster
+          emptyImg.style.maxWidth = mWidth + 'px'
+          emptyImg.style.maxHeight = mHeight + 'px'
+          document.getElementById(id).parentNode.replaceChild(emptyImg, document.getElementById(id))
+
+          const img = new Image()
+          img.onload = function () {
+            emptyImg.parentNode.replaceChild(img, emptyImg)
+          }
+          img.style.maxWidth = mWidth + 'px'
+          img.style.maxHeight = mHeight + 'px'
+          img.src = `https://a.ltrbxd.com/resized/film-poster/${slashFilmId}/${filmId}-${dashTitle}-0-${width}-0-${height}-crop.jpg?k=${cacheBustingKey}`
+        } else {
+          document.getElementById(id).src = 'data:text/html;charset=utf-8,' + escape(html)
+        }
       }
     })
     return html
