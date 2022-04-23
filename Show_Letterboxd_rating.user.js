@@ -9,41 +9,29 @@
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
-// @require     http://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js
-// @license     GPL-3.0-or-later; http://www.gnu.org/licenses/gpl-3.0.txt
-// @version     14
+// @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
+// @version     15
 // @connect     letterboxd.com
 // @include     https://play.google.com/store/movies/details/*
-// @include     http://www.amazon.com/*
-// @include     https://www.amazon.com/*
-// @include     http://www.amazon.co.uk/*
-// @include     https://www.amazon.co.uk/*
-// @include     http://www.amazon.fr/*
-// @include     https://www.amazon.fr/*
-// @include     http://www.amazon.de/*
-// @include     https://www.amazon.de/*
-// @include     http://www.amazon.es/*
-// @include     https://www.amazon.es/*
-// @include     http://www.amazon.ca/*
 // @include     https://www.amazon.ca/*
-// @include     http://www.amazon.in/*
-// @include     https://www.amazon.in/*
-// @include     http://www.amazon.it/*
-// @include     https://www.amazon.it/*
-// @include     http://www.amazon.co.jp/*
 // @include     https://www.amazon.co.jp/*
-// @include     http://www.amazon.com.mx/*
-// @include     https://www.amazon.com.mx/*
-// @include     http://www.amazon.com.au/*
+// @include     https://www.amazon.co.uk/*
+// @include     https://smile.amazon.co.uk/*
 // @include     https://www.amazon.com.au/*
-// @include     http://www.imdb.com/title/*
+// @include     https://www.amazon.com.mx/*
+// @include     https://www.amazon.com/*
+// @include     https://smile.amazon.com/*
+// @include     https://www.amazon.de/*
+// @include     https://smile.amazon.de/*
+// @include     https://www.amazon.es/*
+// @include     https://www.amazon.fr/*
+// @include     https://www.amazon.in/*
+// @include     https://www.amazon.it/*
 // @include     https://www.imdb.com/title/*
-// @include     http://www.serienjunkies.de/*
 // @include     https://www.serienjunkies.de/*
-// @include     http://www.boxofficemojo.com/movies/*
 // @include     https://www.boxofficemojo.com/movies/*
 // @include     https://www.boxofficemojo.com/release/*
-// @include     http://www.allmovie.com/movie/*
 // @include     https://www.allmovie.com/movie/*
 // @include     https://en.wikipedia.org/*
 // @include     https://www.fandango.com/*
@@ -51,7 +39,6 @@
 // @include     https://www.themoviedb.org/movie/*
 // @include     https://www.rottentomatoes.com/m/*
 // @include     https://rottentomatoes.com/m/*
-// @include     http://www.metacritic.com/movie/*
 // @include     https://www.metacritic.com/movie/*
 // @include     https://www.nme.com/reviews/movie/*
 // @include     https://www.nme.com/reviews/film-reviews/*
@@ -834,7 +821,7 @@ const sites = {
     products: [{
       condition: () => document.querySelector('[data-automation-id=title]'),
       type: 'movie',
-      data: () => document.querySelector('[data-automation-id=title]').textContent.trim()
+      data: () => document.querySelector('[data-automation-id=title]').textContent.trim().replace(/\[.{1,8}\]/, '')
     }]
   },
   BoxOfficeMojo: {
