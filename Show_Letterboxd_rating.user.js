@@ -2,6 +2,7 @@
 // @name        Show Letterboxd rating
 // @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com
 // @namespace   cuzi
+// @icon        https://letterboxd.com/favicon.ico
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
