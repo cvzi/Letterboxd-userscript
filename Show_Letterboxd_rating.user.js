@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     16
+// @version     17
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -48,6 +48,7 @@
 // @match       https://thetvdb.com/movies/*
 // @match       https://rlsbb.ru/*/
 // @match       https://www.sho.com/*
+// @match       https://psa.pm/*
 // ==/UserScript==
 
 /* global GM, $ */
@@ -204,7 +205,7 @@ async function searchMovie (query, type, year, forceList) {
   } else {
     GM.xmlHttpRequest({
       method: 'GET',
-      url: url,
+      url,
       onload: function (response) {
         // Save to chache
 
@@ -450,7 +451,7 @@ async function loadMovieRating (data) {
   } else {
     GM.xmlHttpRequest({
       method: 'GET',
-      url: url,
+      url,
       onload: function (response) {
         // Save to chache
         response.time = (new Date()).toJSON()
@@ -649,7 +650,7 @@ function showMovieRating (response, letterboxdUrl, otherData) {
 .rating-histogram {
     overflow:hidden;
     color:#9ab;
-    display:block
+    display:block;
     width: 230px;
     height: 44px;
     position: relative
@@ -660,7 +661,9 @@ function showMovieRating (response, letterboxdUrl, otherData) {
     top:0;
     left:180px;
 }
-
+.rating-histogram.clear {
+  visibility: visible !important;
+}
 #mcdiv321letterboxd .footer {
     display:none;
 }
@@ -1025,6 +1028,24 @@ const sites = {
         condition: () => parseLDJSON('@type') === 'Movie',
         type: 'movie',
         data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
+      }]
+  },
+  psapm: {
+    host: ['psa.pm'],
+    condition: Always,
+    products: [
+      {
+        condition: () => document.location.pathname.startsWith('/movie/'),
+        type: 'movie',
+        data: function () {
+          const title = document.querySelector('h1').textContent.trim()
+          const m = title.match(/(.+)\((\d+)\)$/)
+          if (m) {
+            return [m[1].trim(), parseInt(m[2])]
+          } else {
+            return title
+          }
+        }
       }]
   }
 
