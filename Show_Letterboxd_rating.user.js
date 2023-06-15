@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Show Letterboxd rating
-// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com
+// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv
 // @namespace   cuzi
 // @icon        https://letterboxd.com/favicon.ico
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     17
+// @version     18
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -49,6 +49,7 @@
 // @match       https://rlsbb.ru/*/
 // @match       https://www.sho.com/*
 // @match       https://psa.pm/*
+// @match       https://www.save.tv/*
 // ==/UserScript==
 
 /* global GM, $ */
@@ -1047,6 +1048,29 @@ const sites = {
           }
         }
       }]
+  },
+  'save.tv': {
+    host: ['save.tv'],
+    condition: () => document.location.pathname.startsWith('/STV/M/obj/archive/'),
+    products: [
+      {
+        condition: () => document.location.pathname.startsWith('/STV/M/obj/archive/'),
+        type: 'movie',
+        data: function () {
+          let title = null
+          if (document.querySelector("span[data-bind='text:OrigTitle']")) {
+            title = document.querySelector("span[data-bind='text:OrigTitle']").textContent
+          } else {
+            title = document.querySelector("h2[data-bind='text:Title']").textContent
+          }
+          let year = null
+          if (document.querySelector("span[data-bind='text:ProductionYear']")) {
+            year = parseInt(document.querySelector("span[data-bind='text:ProductionYear']").textContent)
+          }
+          return [title, year]
+        }
+      }
+    ]
   }
 
 }

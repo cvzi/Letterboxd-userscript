@@ -30,6 +30,7 @@ Supported sites and products:
  * thetvdb.com
  * nme.com - New Musical Express
  * itunes.apple.com
+ * save.tv
 
 Screenshot:
 ![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Letterboxd-userscript/master/screenshot_amazon.png)
