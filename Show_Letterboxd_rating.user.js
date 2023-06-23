@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     18
+// @version     19
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -325,8 +325,7 @@ function handleSearchResponse (response, forceList) {
 function showMovieList (arr, time) {
   // Show a small box in the right lower corner
   $('#mcdiv321letterboxd').remove()
-  let main, div
-  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
+  const div = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
     position: 'fixed',
     bottom: 0,
@@ -389,13 +388,14 @@ function showMovieList (arr, time) {
   }
 
   // First result
-  const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(main)
+  const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
   first[0].dataset.movie = JSON.stringify(arr[0])
 
   // Shall the following results be collapsed by default?
   if ((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
-    $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(main).click(function () { more.css('display', 'block'); this.parentNode.removeChild(this) })
-    const more = div = $('<div style="display:none"></div>').appendTo(main)
+    let more = null
+    $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(div).click(function () { more.css('display', 'block'); this.parentNode.removeChild(this) })
+    more = $('<div style="display:none"></div>').appendTo(div)
   }
 
   // More results
@@ -405,7 +405,7 @@ function showMovieList (arr, time) {
   }
 
   // Footer
-  const sub = $('<div></div>').appendTo(main)
+  const sub = $('<div></div>').appendTo(div)
   $('<time style="color:#789; font-size: 11px;" datetime="' + time + '" title="' + time.toLocaleTimeString() + ' ' + time.toLocaleDateString() + '">' + minutesSince(time) + '</time>').appendTo(sub)
   $('<a style="color:#789; font-size: 11px;" target="_blank" href="' + baseURL_openTab.replace('{query}', encodeURIComponent(current.query)) + '" title="Open Letterboxd">@letterboxd.com</a>').appendTo(sub)
   $('<span title="Hide me" style="cursor:pointer; float:right; color:#789; font-size: 11px; padding-left:5px;padding-top:3px">&#10062;</span>').appendTo(sub).click(function () {
@@ -482,8 +482,8 @@ function showMovieRating (response, letterboxdUrl, otherData) {
   const time = new Date(response.time)
 
   $('#mcdiv321letterboxd').remove()
-  let main, div
-  div = main = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
+
+  const div = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
     position: 'fixed',
     bottom: 0,
@@ -701,8 +701,8 @@ function showMovieRating (response, letterboxdUrl, otherData) {
 
 </style>`
 
-  $(CSS).appendTo(main)
-  const section = $(fixLetterboxdURLs(response.responseText)).appendTo(main)
+  $(CSS).appendTo(div)
+  const section = $(fixLetterboxdURLs(response.responseText)).appendTo(div)
 
   section.find('h2').remove()
 
@@ -736,7 +736,7 @@ function showMovieRating (response, letterboxdUrl, otherData) {
   }
 
   // Footer
-  const sub = $('<div class="footer"></div>').appendTo(main)
+  const sub = $('<div class="footer"></div>').appendTo(div)
   $('<span style="color:#789; font-size: 11px">' + identName + identOriginalName + identYear + identDirector + '</span>').appendTo(sub)
   $('<br>').appendTo(sub)
   $('<time style="color:#789; font-size: 11px;" datetime="' + time + '" title="' + time.toLocaleTimeString() + ' ' + time.toLocaleDateString() + '">' + minutesSince(time) + '</time>').appendTo(sub)
@@ -1109,16 +1109,33 @@ function main () {
 }
 
 async function adaptForRottentomatoesScript () {
-  if (!document.getElementById('mcdiv321rotten') || !document.getElementById('mcdiv321letterboxd')) {
+  // Move this container above the rottentomatoes container and if the meta container is on the right side above both
+  const letterC = document.getElementById('mcdiv321letterboxd')
+  const metaC = document.getElementById('mcdiv123')
+  const rottenC = document.getElementById('mcdiv321rotten')
+
+  if (!letterC || (!metaC && !rottenC)) {
     return
   }
-  const h = parseInt(document.getElementById('mcdiv321rotten').clientHeight) + 5
-  if (document.getElementById('mcdiv321letterboxd').dataset.adapted && parseInt(document.getElementById('mcdiv321letterboxd').dataset.adapted) === h) {
-    return
+  const letterBounds = letterC.getBoundingClientRect()
+
+  let bottom = 0
+  if (metaC) {
+    const metaBounds = metaC.getBoundingClientRect()
+    if (Math.abs(metaBounds.right - letterBounds.right) < 20 && metaBounds.top > 20) {
+      bottom += metaBounds.height
+    }
   }
-  const letterboxd = document.getElementById('mcdiv321letterboxd')
-  letterboxd.style.bottom = h + 'px'
-  document.getElementById('mcdiv321letterboxd').dataset.adapted = h
+  if (rottenC) {
+    const rottenBounds = rottenC.getBoundingClientRect()
+    if (Math.abs(rottenBounds.right - letterBounds.right) < 20 && rottenBounds.top > 20) {
+      bottom += rottenBounds.height
+    }
+  }
+
+  if (bottom > 0) {
+    letterC.style.bottom = bottom + 'px'
+  }
 }
 
 (function () {
