@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name        Show Letterboxd rating
-// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv
+// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv, argenteam.net
 // @namespace   cuzi
-// @icon        https://letterboxd.com/favicon.ico
+// @icon        https://avatars.githubusercontent.com/u/11546414?s=200&v=4
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     19
+// @version     20
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -50,6 +50,7 @@
 // @match       https://www.sho.com/*
 // @match       https://psa.pm/*
 // @match       https://www.save.tv/*
+// @match       https://argenteam.net/*
 // ==/UserScript==
 
 /* global GM, $ */
@@ -1068,6 +1069,23 @@ const sites = {
             year = parseInt(document.querySelector("span[data-bind='text:ProductionYear']").textContent)
           }
           return [title, year]
+        }
+      }
+    ]
+  },
+  aRGENTeaM: {
+    host: ['argenteam.net'],
+    condition: Always,
+    products: [
+      {
+        condition: () => document.location.pathname.startsWith('/movie/'),
+        type: 'movie',
+        data: function () {
+          const partes = document.title.split('•')
+          const SinArgenteam = partes[1].trim()
+          const SoloTitulo = SinArgenteam.split('(')[0].trim()
+          const Year = SinArgenteam.split('(')[1].split(')')[0]
+          return [SoloTitulo, Year]
         }
       }
     ]

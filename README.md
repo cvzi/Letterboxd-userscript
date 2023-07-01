@@ -31,6 +31,7 @@ Supported sites and products:
  * nme.com - New Musical Express
  * itunes.apple.com
  * save.tv
+ * argenteam.net
 
 Screenshot:
 ![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Letterboxd-userscript/master/screenshot_amazon.png)
