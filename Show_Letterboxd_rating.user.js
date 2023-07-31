@@ -2,7 +2,7 @@
 // @name        Show Letterboxd rating
 // @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv, argenteam.net
 // @namespace   cuzi
-// @icon        https://avatars.githubusercontent.com/u/11546414?s=200&v=4
+// @icon        https://a.ltrbxd.com/logos/letterboxd-mac-icon.png
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     20
+// @version     21
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -332,7 +332,7 @@ function showMovieList (arr, time) {
     bottom: 0,
     right: 0,
     minWidth: 100,
-    maxHeight: '95%',
+    maxHeight: '80%',
     overflow: 'auto',
     backgroundColor: '#fff',
     border: '2px solid #bbb',
@@ -393,15 +393,17 @@ function showMovieList (arr, time) {
   first[0].dataset.movie = JSON.stringify(arr[0])
 
   // Shall the following results be collapsed by default?
+  let more = null
   if ((arr.length > 1 && arr[0].matchQuality > 10) || arr.length > 10) {
-    let more = null
     $('<span style="color:gray;font-size: x-small">More results...</span>').appendTo(div).click(function () { more.css('display', 'block'); this.parentNode.removeChild(this) })
     more = $('<div style="display:none"></div>').appendTo(div)
+  } else {
+    more = $('<div></div>').appendTo(div)
   }
 
   // More results
   for (let i = 1; i < arr.length; i++) {
-    const entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle ? ' [' + arr[i].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
+    const entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle ? ' [' + arr[i].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(more)
     entry[0].dataset.movie = JSON.stringify(arr[i])
   }
 
