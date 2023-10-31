@@ -10,9 +10,9 @@
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
 // @grant       GM.getValue
-// @require     https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
+// @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     22
+// @version     23
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -30,7 +30,6 @@
 // @match       https://www.amazon.in/*
 // @match       https://www.amazon.it/*
 // @match       https://www.imdb.com/title/*
-// @match       https://www.serienjunkies.de/*
 // @match       https://www.boxofficemojo.com/movies/*
 // @match       https://www.boxofficemojo.com/release/*
 // @match       https://www.allmovie.com/movie/*
@@ -48,9 +47,12 @@
 // @match       https://thetvdb.com/movies/*
 // @match       https://rlsbb.ru/*/
 // @match       https://www.sho.com/*
+// @match       https://www.gog.com/*
 // @match       https://psa.pm/*
+// @match       https://psa.wf/*
 // @match       https://www.save.tv/*
 // @match       https://argenteam.net/*
+// @match       https://www.wikiwand.com/*
 // ==/UserScript==
 
 /* global GM, $, Image */
@@ -851,6 +853,11 @@ const sites = {
       condition: () => document.querySelector('[data-automation-id=title]'),
       type: 'movie',
       data: () => document.querySelector('[data-automation-id=title]').textContent.trim().replace(/\[.{1,8}\]/, '')
+    },
+    {
+      condition: () => document.querySelector('#watchNowContainer a[href*="/gp/video/"]'),
+      type: 'movie',
+      data: () => document.getElementById('productTitle').textContent.trim()
     }]
   },
   BoxOfficeMojo: {
@@ -936,7 +943,8 @@ const sites = {
     host: ['themoviedb.org'],
     condition: () => document.querySelector("meta[property='og:type']"),
     products: [{
-      condition: () => document.querySelector("meta[property='og:type']").content === 'movie',
+      condition: () => document.querySelector("meta[property='og:type']").content === 'movie' ||
+        document.querySelector("meta[property='og:type']").content === 'video.movie',
       type: 'movie',
       data: function () {
         let year = null
@@ -1002,9 +1010,11 @@ const sites = {
   },
   TVHoard: {
     host: ['tvhoard.com'],
-    condition: Always,
+    condition: () => document.location.pathname.split('/').length > 3 &&
+      document.location.pathname.split('/')[1] === 'titles' &&
+       document.querySelector('title-primary-details-panel h1.title a'),
     products: [{
-      condition: () => document.location.pathname.split('/').length === 3 && document.location.pathname.split('/')[1] === 'titles' && !document.querySelector('app-root title-secondary-details-panel .seasons') && document.querySelector('app-root title-page-container h1.title a'),
+      condition: () => !document.querySelector('title-secondary-details-panel .detail.seasons'),
       type: 'movie',
       data: () => [document.querySelector('app-root title-page-container h1.title a').textContent.trim(), document.querySelector('app-root title-page-container title-primary-details-panel h1.title .year').textContent.trim().substring(1, 5)]
     }]
@@ -1029,8 +1039,19 @@ const sites = {
         data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
       }]
   },
+  gog: {
+    host: ['www.gog.com'],
+    condition: () => document.querySelector('.productcard-basics__title'),
+    products: [{
+      condition: () => document.location.pathname.split('/').length > 2 && (
+        document.location.pathname.split('/')[1] === 'movie' ||
+        document.location.pathname.split('/')[2] === 'movie'),
+      type: 'movie',
+      data: () => document.querySelector('.productcard-basics__title').textContent
+    }]
+  },
   psapm: {
-    host: ['psa.pm'],
+    host: ['psa.pm', 'psa.wf'],
     condition: Always,
     products: [
       {
@@ -1086,6 +1107,24 @@ const sites = {
         }
       }
     ]
+  },
+  wikiwand: {
+    host: ['www.wikiwand.com'],
+    condition: Always,
+    products: [{
+      condition: function () {
+        const title = document.querySelector('h1').textContent.toLowerCase()
+        const subtitle = document.querySelector('h2[class*="subtitle"]') ? document.querySelector('h2[class*="subtitle"]').textContent.toLowerCase() : ''
+        if (title.indexOf('film') === -1 && !subtitle) {
+          return false
+        }
+        return title.indexOf('film') !== -1 ||
+          subtitle.indexOf('film') !== -1 ||
+          subtitle.indexOf('movie') !== -1
+      },
+      type: 'movie',
+      data: () => document.querySelector('h1').textContent.replace(/\((\d{4} )?film\)/i, '').trim()
+    }]
   }
 
 }
