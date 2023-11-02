@@ -53,6 +53,7 @@
 // @match       https://www.save.tv/*
 // @match       https://argenteam.net/*
 // @match       https://www.wikiwand.com/*
+// @match       http://localhost:7878/*
 // ==/UserScript==
 
 /* global GM, $, Image */
@@ -1125,6 +1126,21 @@ const sites = {
       type: 'movie',
       data: () => document.querySelector('h1').textContent.replace(/\((\d{4} )?film\)/i, '').trim()
     }]
+  },
+  radarr: {
+    host: ['*'],
+    condition: () => document.location.pathname.startsWith('/movie/'),
+    products: [{
+      condition: () => document.querySelector('[class*="MovieDetails-title"] span'),
+      type: 'movie',
+      data: () => {
+        let year = null
+        if (document.querySelector('[class*="MovieDetails-yea"] span')) {
+          year = document.querySelector('[class*="MovieDetails-yea"] span').textContent.trim()
+        }
+        return [document.querySelector('[class*="MovieDetails-title"] span').textContent.trim(), year]
+      }
+    }]
   }
 
 }
@@ -1133,7 +1149,7 @@ function main () {
   let dataFound = false
   for (const name in sites) {
     const site = sites[name]
-    if (site.host.some(function (e) { return ~this.indexOf(e) }, document.location.hostname) && site.condition()) {
+    if (site.host.some(function (e) { return ~this.indexOf(e) || e === '*' }, document.location.hostname) && site.condition()) {
       for (let i = 0; i < site.products.length; i++) {
         if (site.products[i].condition()) {
           // Try to retrieve item name from page

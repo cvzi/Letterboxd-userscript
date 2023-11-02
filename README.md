@@ -32,6 +32,7 @@ Supported sites and products:
  * itunes.apple.com
  * save.tv
  * argenteam.net
+ * [Radarr](https://github.com/Radarr/Radarr) - you need to set your server address in the script header, default is `@match  http://localhost:7878/*`
 
 Screenshot:
 ![Screenshot of amazon product page](https://raw.githubusercontent.com/cvzi/Letterboxd-userscript/master/screenshot_amazon.png)
