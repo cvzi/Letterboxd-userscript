@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     24
+// @version     25
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -53,6 +53,7 @@
 // @match       https://www.save.tv/*
 // @match       https://argenteam.net/*
 // @match       https://www.wikiwand.com/*
+// @match       https://trakt.tv/*
 // @match       http://localhost:7878/*
 // ==/UserScript==
 
@@ -1126,6 +1127,21 @@ const sites = {
       type: 'movie',
       data: () => document.querySelector('h1').textContent.replace(/\((\d{4} )?film\)/i, '').trim()
     }]
+  },
+  trakt: {
+    host: ['trakt.tv'],
+    condition: Always,
+    products: [
+      {
+        condition: () => document.location.pathname.startsWith('/movies/'),
+        type: 'movie',
+        data: function () {
+          const title = Array.from(document.querySelector('.summary h1').childNodes).filter(node => node.nodeType === node.TEXT_NODE).map(node => node.textContent).join(' ').trim()
+          const year = document.querySelector('.summary h1 .year').textContent
+          return [title, year]
+        }
+      }
+    ]
   },
   radarr: {
     host: ['*'],
