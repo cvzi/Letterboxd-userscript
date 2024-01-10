@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     25
+// @version     26
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -822,7 +822,7 @@ const sites = {
             console.debug('ShowLetterboxd: Movie ld+json name', ld[0], year)
             return [ld[0], year]
           } else {
-            const m = document.title.match(/(.+?)\s+(\((\d+)\))? - IMDb/)
+            const m = document.title.match(/(.+?)\s+(\((\d+)\))? - /)
             console.debug('ShowLetterboxd: Movie <title>', [m[1], m[3]])
             return [m[1], parseInt(m[3])]
           }
@@ -1178,8 +1178,12 @@ function main () {
             console.error(e)
           }
           if (data) {
-            if (Array.isArray(data) && data[1]) {
-              searchMovie(data[0].trim(), site.products[i].type, parseInt(data[1]))
+            if (Array.isArray(data)) {
+              if (data[1]) {
+                searchMovie(data[0].trim(), site.products[i].type, parseInt(data[1]))
+              } else {
+                searchMovie(data.trim(), site.products[i].type)
+              }
             } else {
               searchMovie(data.trim(), site.products[i].type)
             }
