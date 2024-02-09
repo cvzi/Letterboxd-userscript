@@ -58,6 +58,7 @@
 // ==/UserScript==
 
 /* global GM, $, Image */
+/* jshint asi: true, esversion: 8 */
 
 const baseURL = 'https://letterboxd.com'
 const baseURLsearch = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
