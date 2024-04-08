@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Show Letterboxd rating
-// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv, argenteam.net
+// @description Show Letterboxd rating on imdb.com, metacritic.com, rottentomatoes.com, BoxOfficeMojo, Amazon, Google Play, allmovie.com, Wikipedia, themoviedb.org, fandango.com, thetvdb.com, save.tv
 // @namespace   cuzi
 // @icon        https://a.ltrbxd.com/logos/letterboxd-mac-icon.png
 // @updateURL   https://openuserjs.org/meta/cuzi/Show_Letterboxd_rating.meta.js
@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     26
+// @version     27
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -35,7 +35,7 @@
 // @match       https://www.allmovie.com/movie/*
 // @match       https://en.wikipedia.org/*
 // @match       https://www.fandango.com/*
-// @match       https://www.flixster.com/movie/*
+// @match       https://flixster.com/movie/*
 // @match       https://www.themoviedb.org/movie/*
 // @match       https://www.rottentomatoes.com/m/*
 // @match       https://rottentomatoes.com/m/*
@@ -43,27 +43,25 @@
 // @match       https://www.nme.com/reviews/movie/*
 // @match       https://www.nme.com/reviews/film-reviews/*
 // @match       https://itunes.apple.com/*
-// @match       https://www.tvhoard.com/*
 // @match       https://thetvdb.com/movies/*
 // @match       https://rlsbb.ru/*/
 // @match       https://www.sho.com/*
 // @match       https://www.gog.com/*
-// @match       https://psa.pm/*
 // @match       https://psa.wf/*
 // @match       https://www.save.tv/*
-// @match       https://argenteam.net/*
 // @match       https://www.wikiwand.com/*
 // @match       https://trakt.tv/*
 // @match       http://localhost:7878/*
 // ==/UserScript==
 
-/* global GM, $, Image */
+/* global GM, $, Image, DOMParser */
 /* jshint asi: true, esversion: 8 */
 
 const baseURL = 'https://letterboxd.com'
 const baseURLsearch = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
 const baseURLopenTab = baseURL + '/search/{query}/'
 const baseURLratingHistogram = baseURL + '/csi{url}rating-histogram/'
+const baseURLposter = baseURL + '/ajax/poster{film_url}std/70x105/'
 
 const cacheExpireAfterHours = 4
 
@@ -352,6 +350,7 @@ function handleSearchResponse (response, forceList) {
 
 function showMovieList (arr, time) {
   // Show a small box in the right lower corner
+  const parser = new DOMParser()
   $('#mcdiv321letterboxd').remove()
   const div = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
@@ -371,44 +370,36 @@ function showMovieList (arr, time) {
     fontFamily: 'Helvetica,Arial,sans-serif'
   })
 
-  const imgFrame = function imgFrameFct (image125, scale) {
-    if (!image125) {
+  const imgFrame = function imgFrameFct (filmUrl, scale) {
+    if (!filmUrl) {
       return
     }
+
+    console.log(filmUrl)
+    const url = baseURLposter.replace('{film_url}', filmUrl)
+    console.log(url)
+
     const id = 'iframeimg' + Math.random()
     const mWidth = 180.0 * scale - 45.0
     const mHeight = 180.0 * scale - 25
-    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + baseURL + image125 + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:' + (40.0 * scale - 40.0) + '%; margin-left:' + (40.0 * scale - 40.0) + '%; transform:scale(' + scale + '); transform-origin:bottom right"></iframe> '
+    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + url + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:' + (40.0 * scale - 40.0) + '%; margin-left:' + (40.0 * scale - 40.0) + '%; transform:scale(' + scale + '); transform-origin:bottom right"></iframe> '
     html += '<div style="position:absolute;top:0px;left:0px;width:' + mWidth + 'px;height:' + mHeight + 'px"></div> '
     GM.xmlHttpRequest({
       method: 'GET',
-      url: baseURL + image125,
+      url,
       onload: function (response) {
         const html = '<base href="' + baseURL + '">' + response.responseText
-        if (html.indexOf('empty-poster-')) {
-          const emptyPoster = html.match(/src="(https:\/\/\S+)"/)[1]
-          const width = html.match(/data-image-width="(\d+)"/)[1]
-          const height = html.match(/data-image-height="(\d+)"/)[1]
-          const filmId = html.match(/data-film-id="(\d+)"/)[1]
-          const cacheBustingKey = html.match(/data-cache-busting-key="(\w+)"/)[1]
-          const dashTitle = html.match(/data-target-link="\/film\/(\S+)\/"/)[1]
-          const slashFilmId = filmId.toString().split('').join('/')
-
-          const emptyImg = new Image()
-          emptyImg.src = emptyPoster
-          emptyImg.style.maxWidth = mWidth + 'px'
-          emptyImg.style.maxHeight = mHeight + 'px'
-          document.getElementById(id).parentNode.replaceChild(emptyImg, document.getElementById(id))
-
+        if (html.indexOf('srcset=')) {
+          const doc = parser.parseFromString(html, 'text/html')
+          const image = doc.querySelector('img.image')
           const img = new Image()
-          img.onload = function () {
-            emptyImg.parentNode.replaceChild(img, emptyImg)
-          }
+          img.src = image.src
+          img.srcset = image.srcset
           img.style.maxWidth = mWidth + 'px'
           img.style.maxHeight = mHeight + 'px'
-          img.src = `https://a.ltrbxd.com/resized/film-poster/${slashFilmId}/${filmId}-${dashTitle}-0-${width}-0-${height}-crop.jpg?k=${cacheBustingKey}`
+          document.getElementById(id).parentNode.replaceChild(img, document.getElementById(id))
         } else {
-          document.getElementById(id).src = 'data:text/html;charset=utf-8,' + escape(html)
+          document.getElementById(id).src = 'data:text/html;charset=utf-8,' + encodeURIComponent(html)
         }
       }
     })
@@ -416,7 +407,9 @@ function showMovieList (arr, time) {
   }
 
   // First result
-  const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].image125, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
+
+  console.log(arr[0])
+  const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].url, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
   first[0].dataset.movie = JSON.stringify(arr[0])
 
   // Shall the following results be collapsed by default?
@@ -430,7 +423,7 @@ function showMovieList (arr, time) {
 
   // More results
   for (let i = 1; i < arr.length; i++) {
-    const entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].image125, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle ? ' [' + arr[i].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(more)
+    const entry = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[i].url + '">' + imgFrame(arr[i].url, 0.5) + '<div style="max-width:350px;display:inline-block">' + arr[i].name + (arr[i].originalTitle ? ' [' + arr[i].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(more)
     entry[0].dataset.movie = JSON.stringify(arr[i])
   }
 
@@ -934,7 +927,7 @@ const sites = {
     }]
   },
   flixster: {
-    host: ['www.flixster.com'],
+    host: ['flixster.com'],
     condition: () => Always,
     products: [{
       condition: () => parseLDJSON('@type') === 'Movie',
@@ -1011,17 +1004,6 @@ const sites = {
       data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
     }]
   },
-  TVHoard: {
-    host: ['tvhoard.com'],
-    condition: () => document.location.pathname.split('/').length > 3 &&
-      document.location.pathname.split('/')[1] === 'titles' &&
-       document.querySelector('title-primary-details-panel h1.title a'),
-    products: [{
-      condition: () => !document.querySelector('title-secondary-details-panel .detail.seasons'),
-      type: 'movie',
-      data: () => [document.querySelector('app-root title-page-container h1.title a').textContent.trim(), document.querySelector('app-root title-page-container title-primary-details-panel h1.title .year').textContent.trim().substring(1, 5)]
-    }]
-  },
   RlsBB: {
     host: ['rlsbb.ru'],
     condition: () => document.querySelectorAll('.post').length === 1,
@@ -1054,7 +1036,7 @@ const sites = {
     }]
   },
   psapm: {
-    host: ['psa.pm', 'psa.wf'],
+    host: ['psa.wf'],
     condition: Always,
     products: [
       {
@@ -1090,23 +1072,6 @@ const sites = {
             year = parseInt(document.querySelector("span[data-bind='text:ProductionYear']").textContent)
           }
           return [title, year]
-        }
-      }
-    ]
-  },
-  aRGENTeaM: {
-    host: ['argenteam.net'],
-    condition: Always,
-    products: [
-      {
-        condition: () => document.location.pathname.startsWith('/movie/'),
-        type: 'movie',
-        data: function () {
-          const partes = document.title.split('•')
-          const SinArgenteam = partes[1].trim()
-          const SoloTitulo = SinArgenteam.split('(')[0].trim()
-          const Year = SinArgenteam.split('(')[1].split(')')[0]
-          return [SoloTitulo, Year]
         }
       }
     ]
