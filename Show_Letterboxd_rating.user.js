@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     27
+// @version     28
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -60,7 +60,7 @@
 const baseURL = 'https://letterboxd.com'
 const baseURLsearch = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
 const baseURLopenTab = baseURL + '/search/{query}/'
-const baseURLratingHistogram = baseURL + '/csi{url}rating-histogram/'
+const baseURLratingHistogram = baseURL + '/csi{url}ratings-summary/'
 const baseURLposter = baseURL + '/ajax/poster{film_url}std/70x105/'
 
 const cacheExpireAfterHours = 4
