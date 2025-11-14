@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     28
+// @version     29
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -54,14 +54,14 @@
 // @match       http://localhost:7878/*
 // ==/UserScript==
 
-/* global GM, $, Image, DOMParser */
+/* global GM, $, Image */
 /* jshint asi: true, esversion: 8 */
 
 const baseURL = 'https://letterboxd.com'
 const baseURLsearch = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
 const baseURLopenTab = baseURL + '/search/{query}/'
 const baseURLratingHistogram = baseURL + '/csi{url}ratings-summary/'
-const baseURLposter = baseURL + '/ajax/poster{film_url}std/70x105/'
+const baseURLposter = baseURL + '{film_url}poster/std/150/'
 
 const cacheExpireAfterHours = 4
 
@@ -350,7 +350,6 @@ function handleSearchResponse (response, forceList) {
 
 function showMovieList (arr, time) {
   // Show a small box in the right lower corner
-  const parser = new DOMParser()
   $('#mcdiv321letterboxd').remove()
   const div = $('<div id="mcdiv321letterboxd"></div>').appendTo(document.body)
   div.css({
@@ -375,31 +374,48 @@ function showMovieList (arr, time) {
       return
     }
 
-    console.log(filmUrl)
+    console.log('ShowLetterboxd: Film url', filmUrl)
     const url = baseURLposter.replace('{film_url}', filmUrl)
-    console.log(url)
+    console.log('ShowLetterboxd: Poster url', url)
 
     const id = 'iframeimg' + Math.random()
     const mWidth = 180.0 * scale - 45.0
     const mHeight = 180.0 * scale - 25
-    let html = '<iframe id="' + id + '" sandbox scrolling="no" src="' + url + '" marginheight="0" marginwidth="0" style="vertical-align:middle; padding:0px; border:none; display:inline; max-width:125px; margin-top:' + (40.0 * scale - 40.0) + '%; margin-left:' + (40.0 * scale - 40.0) + '%; transform:scale(' + scale + '); transform-origin:bottom right"></iframe> '
-    html += '<div style="position:absolute;top:0px;left:0px;width:' + mWidth + 'px;height:' + mHeight + 'px"></div> '
+    const html = '<div id="' + id + '" style="vertical-align: middle;padding: 0px;border: none;display: inline-block;width: 43px;height: 50px;background: #666;border: 10px solid #777;"></div> '
+
+    const setImage = function (imageUrl) {
+      const img = new Image()
+      img.src = imageUrl
+      img.style.maxWidth = mWidth + 'px'
+      img.style.maxHeight = mHeight + 'px'
+      document.getElementById(id).parentNode.replaceChild(img, document.getElementById(id))
+    }
+
+    // Check session first
+    const cachedImage = window.sessionStorage.getItem('letterboxd_poster_' + filmUrl)
+    if (cachedImage) {
+      console.log('ShowLetterboxd: Found cached image for', filmUrl)
+      return `<img src="${cachedImage}" style="max-width:${mWidth}px; max-height:${mHeight}px;">`
+    }
     GM.xmlHttpRequest({
       method: 'GET',
       url,
       onload: function (response) {
-        const html = '<base href="' + baseURL + '">' + response.responseText
-        if (html.indexOf('srcset=')) {
-          const doc = parser.parseFromString(html, 'text/html')
-          const image = doc.querySelector('img.image')
-          const img = new Image()
-          img.src = image.src
-          img.srcset = image.srcset
-          img.style.maxWidth = mWidth + 'px'
-          img.style.maxHeight = mHeight + 'px'
-          document.getElementById(id).parentNode.replaceChild(img, document.getElementById(id))
+        let posterJSON = {}
+        try {
+          posterJSON = JSON.parse(response.responseText)
+          // No image
+        } catch (e) {
+          console.log('ShowLetterboxd: Error parsing Poster JSON', e)
+          console.log('ShowLetterboxd: Poster response text:', response.responseText)
+        }
+        if ('url' in posterJSON && posterJSON.url) {
+          setImage(posterJSON.url)
+
+          // Store filmUrl => image in session storage
+          window.sessionStorage.setItem('letterboxd_poster_' + filmUrl, posterJSON.url)
         } else {
-          document.getElementById(id).src = 'data:text/html;charset=utf-8,' + encodeURIComponent(html)
+          console.log('ShowLetterboxd: No poster URL found in JSON for', filmUrl)
         }
       }
     })
@@ -408,7 +424,7 @@ function showMovieList (arr, time) {
 
   // First result
 
-  console.log(arr[0])
+  console.log('ShowLetterboxd: First result', arr[0])
   const first = $('<div style="position:relative"><a style="font-size:small; color:#136CB2; " href="' + baseURL + arr[0].url + '">' + imgFrame(arr[0].url, 0.75) + '<div style="max-width:350px;display:inline-block">' + arr[0].name + (arr[0].originalTitle ? ' [' + arr[0].originalTitle + ']' : '') + (arr[0].releaseYear ? ' (' + arr[0].releaseYear + ')' : '') + '</div></a></div>').click(selectMovie).appendTo(div)
   first[0].dataset.movie = JSON.stringify(arr[0])
 
