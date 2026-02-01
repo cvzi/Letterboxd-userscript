@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     29
+// @version     30
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -134,11 +134,15 @@ function parseLDJSON (keys, condition) {
       if (scripts[i].innerText in parseLDJSONCache) {
         jsonld = parseLDJSONCache[scripts[i].innerText]
       } else {
+        let text
         try {
-          jsonld = JSON.parse(scripts[i].innerText)
+          text = scripts[i].innerText
+          text = text.replace(/^\/\*.*\*\//gm, '') // Replace comment lines
+          jsonld = JSON.parse(text)
           parseLDJSONCache[scripts[i].innerText] = jsonld
         } catch (e) {
           parseLDJSONCache[scripts[i].innerText] = null
+          console.warn(e, text)
           continue
         }
       }
