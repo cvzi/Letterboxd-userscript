@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     30
+// @version     31
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -35,7 +35,6 @@
 // @match       https://www.allmovie.com/movie/*
 // @match       https://en.wikipedia.org/*
 // @match       https://www.fandango.com/*
-// @match       https://flixster.com/movie/*
 // @match       https://www.themoviedb.org/movie/*
 // @match       https://www.rottentomatoes.com/m/*
 // @match       https://rottentomatoes.com/m/*
@@ -946,15 +945,6 @@ const sites = {
       data: () => document.querySelector("meta[property='og:title']").content.match(/(.+?)\s+\(\d{4}\)/)[1].trim()
     }]
   },
-  flixster: {
-    host: ['flixster.com'],
-    condition: () => Always,
-    products: [{
-      condition: () => parseLDJSON('@type') === 'Movie',
-      type: 'movie',
-      data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
-    }]
-  },
   themoviedb: {
     host: ['themoviedb.org'],
     condition: () => document.querySelector("meta[property='og:type']"),
@@ -978,9 +968,8 @@ const sites = {
     products: [{
       condition: () => document.location.pathname.startsWith('/m/'),
       type: 'movie',
-      data: () => document.querySelector('h1').firstChild.textContent
-    }
-    ]
+      data: () => parseLDJSON('name', (j) => (j['@type'] === 'Movie'))
+    }]
   },
   nme: {
     host: ['nme.com'],
