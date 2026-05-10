@@ -12,7 +12,7 @@
 // @grant       GM.getValue
 // @require     https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @license     GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
-// @version     31
+// @version     32
 // @connect     letterboxd.com
 // @match       https://play.google.com/store/movies/details/*
 // @match       https://www.amazon.ca/*
@@ -59,7 +59,7 @@
 const baseURL = 'https://letterboxd.com'
 const baseURLsearch = baseURL + '/s/autocompletefilm?q={query}&limit=20&timestamp={timestamp}'
 const baseURLopenTab = baseURL + '/search/{query}/'
-const baseURLratingHistogram = baseURL + '/csi{url}ratings-summary/'
+const baseURLratingHistogram = baseURL + '/csi{url}rating-histogram/'
 const baseURLposter = baseURL + '{film_url}poster/std/150/'
 
 const cacheExpireAfterHours = 4
@@ -539,180 +539,32 @@ function showMovieRating (response, letterboxdUrl, otherData) {
   })
 
   const CSS = `<style>
-.rating {
-    display: inline-block;
-    height: 16px;
-    background: url(https://s.ltrbxd.com/static/img/sprite.18bffd5e.svg) no-repeat -290px -90px;
-    background-position-x: -290px;
-    background-position-y: -90px;
-    text-indent: 110%;
-    white-space: nowrap;
-    overflow: hidden;
-}
-.rating-green .rating{
-    background-position:-450px -50px
-}
-.rating-green .rated-0{
-    width:0
-}
-.rating-green .rated-1{
-    width:13px;
-    background-position:-515px -50px
-}
-.rating-green .rated-2{
-    width:12px
-}
-.rating-green .rated-3{
-    width:26px;
-    background-position:-502px -50px
-}
-.rating-green .rated-4{
-    width:25px
-}
-.rating-green .rated-5{
-    width:39px;
-    background-position:-489px -50px
-}
-.rating-green .rated-6{
-    width:38px
-}
-.rating-green .rated-7{
-    width:52px;
-    background-position:-476px -50px
-}
-.rating-green .rated-8{
-    width:51px
-}
-.rating-green .rated-9{
-    width:65px;
-    background-position:-463px -50px
-}
-.rating-green .rated-10{
-    width:64px
-}
-.rating-green-tiny .rating{
-    background-position:-350px -380px;
-    height:9px
-}
-.rating-green-tiny .rated-2{
-    width:9px
-}
-.rating-green-tiny .rated-10{
-    width:49px
-}
-.rating-histogram,.rating-histogram ul{
-    height:44px
-}
-.rating-histogram .rating-1,.rating-histogram .rating-5{
-    position:absolute;
-    bottom:0;
-    display:block;
-    height:9px
-}
-.rating-histogram .rating-1 .rating,.rating-histogram .rating-5 .rating{
-    display:block
-}
-.rating-histogram .rating-1{
-    left:0
-}
-.rating-histogram .rating-5{
-    right:0
-}
-.rating-histogram ul{
-    width:200px;
-    left:15px
-}
-.rating-histogram ul,.rating-histogram ul li{
-    display:block;
-    overflow:hidden;
-    position:absolute;
-    bottom:0
-}
-.rating-histogram ul li{
-    height:1px;
-    width:30px;
-    height:100%;
-    font-size:10px;
-    line-height:1;
-    text-indent:110%;
-    white-space:nowrap;
-    border-bottom:0px
-}
-#mcdiv321letterboxd:hover .rating-histogram ul li{
-    border-bottom:2px solid green
+
+
+
+/*
+Reset
+*/
+#mcdiv321letterboxd div, #mcdiv321letterboxd span, #mcdiv321letterboxd applet, #mcdiv321letterboxd object, #mcdiv321letterboxd iframe, #mcdiv321letterboxd h1, #mcdiv321letterboxd h2, #mcdiv321letterboxd h3, #mcdiv321letterboxd h4, #mcdiv321letterboxd h5, #mcdiv321letterboxd h6, #mcdiv321letterboxd p, #mcdiv321letterboxd blockquote, #mcdiv321letterboxd pre, #mcdiv321letterboxd a, #mcdiv321letterboxd abbr, #mcdiv321letterboxd acronym, #mcdiv321letterboxd address, #mcdiv321letterboxd big, #mcdiv321letterboxd cite, #mcdiv321letterboxd code, #mcdiv321letterboxd del, #mcdiv321letterboxd dfn, #mcdiv321letterboxd em, #mcdiv321letterboxd font, #mcdiv321letterboxd img, #mcdiv321letterboxd ins, #mcdiv321letterboxd kbd, #mcdiv321letterboxd q, #mcdiv321letterboxd s, #mcdiv321letterboxd samp, #mcdiv321letterboxd small, #mcdiv321letterboxd strike, #mcdiv321letterboxd strong, #mcdiv321letterboxd sub, #mcdiv321letterboxd sup, #mcdiv321letterboxd tt, #mcdiv321letterboxd var, #mcdiv321letterboxd dl, #mcdiv321letterboxd dt, #mcdiv321letterboxd dd, #mcdiv321letterboxd ol, #mcdiv321letterboxd ul, #mcdiv321letterboxd li, #mcdiv321letterboxd fieldset, #mcdiv321letterboxd form, #mcdiv321letterboxd label, #mcdiv321letterboxd legend, #mcdiv321letterboxd table, #mcdiv321letterboxd caption, #mcdiv321letterboxd tbody, #mcdiv321letterboxd tfoot, #mcdiv321letterboxd thead, #mcdiv321letterboxd tr, #mcdiv321letterboxd th, #mcdiv321letterboxd td, #mcdiv321letterboxd article, #mcdiv321letterboxd aside, #mcdiv321letterboxd canvas, #mcdiv321letterboxd details, #mcdiv321letterboxd figcaption, #mcdiv321letterboxd figure, #mcdiv321letterboxd footer, #mcdiv321letterboxd header, #mcdiv321letterboxd hgroup, #mcdiv321letterboxd menu, #mcdiv321letterboxd nav, #mcdiv321letterboxd section, #mcdiv321letterboxd summary, #mcdiv321letterboxd time, #mcdiv321letterboxd mark, #mcdiv321letterboxd audio, #mcdiv321letterboxd video {
+ margin: 0;
+ padding: 0;
+ border: 0;
+ outline: 0;
+ font-weight: inherit;
+ font-style: inherit;
+ font-size: 100%;
+ font-family: inherit;
+ vertical-align: baseline;
 }
 
-.rating-histogram i{
-    background:#456;
-    border-top-right-radius:2px;
-    border-top-left-radius:2px
-}
-.rating-histogram a,.rating-histogram i{
-    width:100%;
-    position:absolute;
-    bottom:0;
-    left:0
-}
-.rating-histogram a{
-    display:block;
-    top:0;
-    right:0;
-    background:none;
-    padding:0;
-    color:#789
-}
-.rating-histogram a:link,.rating-histogram a:visited{
-    color:#789;
-    text-decoration:none
-}
-.rating-histogram a:hover i{
-    background-color:#678
-}
-.ratings-histogram-chart .section-heading{
-    margin-bottom:15px
-}
-.ratings-histogram-chart .average-rating{
-    position:absolute;
-    top:8px;
-    left:188px;
-    z-index:1
-}
-.ratings-histogram-chart .average-rating .display-rating{
-    display:block;
-    font-size:20px;
-    text-align:center;
-    color:#789;
-    margin-left:1px;
-    line-height:40px;
-    width:33px;
-    height:33px;
-    border-radius:20px;
-    font-family:Graphik-Light-Web,sans-serif;
-    font-weight:400
-}
-.rating-histogram {
-    overflow:hidden;
-    color:#9ab;
-    display:block;
-    width: 230px;
-    height: 44px;
-    position: relative
-}
-.ratings-histogram-chart .all-link.more-link {
-    font-size:10px;
-    position:absolute;
-    top:0;
-    left:180px;
-}
-.rating-histogram.clear {
-  visibility: visible !important;
-}
-#mcdiv321letterboxd .footer {
+
+#mcdiv321letterboxd .mcdiv321footer {
     display:none;
 }
 
-#mcdiv321letterboxd:hover .footer {
+#mcdiv321letterboxd:hover .mcdiv321footer {
     display:block;
+    background-color:transparent !important;
 }
 
 #mcdiv321letterboxd {
@@ -727,18 +579,8 @@ function showMovieRating (response, letterboxdUrl, otherData) {
     background-color:rgb(44, 52, 64)
 }
 
-/* Fixes/Resets for interfering site css */
-#mcdiv321letterboxd .tooltip{
-  border: none;
-  box-shadow:none;
-  background-color:transparent;
-  opacity:1.0;
-  white-space: nowrap;
-}
 
-
-
-
+#mcdiv321letterboxd{--border-width-thin:max(1px, .0625rem);--border-radius-xsmall:0.125rem;--border-radius-small:.25rem --theme-heading-content-color:#fff;--theme-fill-color:#456;--theme-fill-color-rgb:68,85,102;--theme-fill-hover-color:#789;--theme-fill-hover-color-rgb:119,136,153;--theme-fill-active-color:#345;--theme-fill-active-color-rgb:51,68,85;--theme-surface-color:#283038;--theme-surface-color-rgb:40,48,56;--theme-background-color:#14181C;--theme-background-color-rgb:20,24,28;--theme-control-highlight-color-alpha:0.1;--theme-control-highlight-color:rgba(var(--theme-control-highlight-color-rgb), var(--theme-control-highlight-color-alpha));--theme-control-highlight-color-rgb:255,255,255;--theme-control-shadow-color:rgba(var(--theme-control-shadow-color-rgb), .25);--theme-control-shadow-color-rgb:0,0,0;--theme-like-icon-color:#FF9933;--theme-like-icon-color-rgb:255,153,51;--theme-rating-icon-color:#00C030;--theme-rating-icon-color-rgb:0,192,48}.rating-histogram{--_base-width-unitless:14.375;--aspect-ratio:calc(160 / 44);--_star-height-fixed-unitless:0.5625;--star-height-fixed:calc(1rem * var(--_star-height-fixed-unitless));--star-height-fluid:calc(100cqw * (var(--_star-height-fixed-unitless) / var(--_base-width-unitless)));--star-height:max(.4375rem, var(--star-height-fluid));--_average-rating-font-size-fixed-unitless:1.25;--average-rating-font-size-fixed:calc(1rem * var(--_average-rating-font-size-fixed-unitless));--average-rating-font-size-fluid:calc(100cqw * (var(--_average-rating-font-size-fixed-unitless) / var(--_base-width-unitless)));--average-rating-font-size:max(var(--average-rating-font-size-fixed), var(--average-rating-font-size-fluid));--bar-border-radius:var(--border-radius-xsmall);container-type:inline-size}.rating-histogram .stars{fill:var(--theme-rating-icon-color);width:auto;height:var(--star-height)}.rating-histogram .chart{display:flex;container-type:inline-size;container-name:chart;min-height:2.75rem}.rating-histogram .chart *{display:flex;flex:1}.rating-histogram .chart .barcolumn{color:var(--theme-fill-color)}.rating-histogram .chart .barcolumn:-moz-any-link{-moz-transition-property:color;transition-property:color;transition-duration:var(--transition-duration, var(--timing-duration-out));transition-timing-function:var(--easing-default)}.rating-histogram .chart .barcolumn:any-link{transition-property:color;transition-duration:var(--transition-duration, var(--timing-duration-out));transition-timing-function:var(--easing-default)}@media(hover:hover)and (pointer:fine){.rating-histogram .chart .barcolumn:-moz-any-link:hover{--transition-duration:var(--timing-duration-in);color:var(--theme-fill-hover-color)}.rating-histogram .chart .barcolumn:any-link:hover{--transition-duration:var(--timing-duration-in);color:var(--theme-fill-hover-color)}}.rating-histogram .chart .barcolumn:-moz-any-link:focus{--transition-duration:var(--timing-duration-in);color:var(--theme-fill-hover-color)}.rating-histogram .chart .barcolumn:any-link:focus{--transition-duration:var(--timing-duration-in);color:var(--theme-fill-hover-color)}.rating-histogram .chart .barcolumn:-moz-any-link:focus-visible{z-index:1;outline:var(--focus-outline)}.rating-histogram .chart .barcolumn:any-link:focus-visible{z-index:1;outline:var(--focus-outline)}.rating-histogram .chart .barcolumn:-moz-any-link:active{--transition-duration:0;color:var(--theme-fill-active-color)}.rating-histogram .chart .barcolumn:any-link:active{--transition-duration:0;color:var(--theme-fill-active-color)}.rating-histogram .chart .barcolumn > .bar{align-self:end;height:max(var(--value, 0) * 100%,max(1px,.0625rem));container-type:size}.rating-histogram .chart .barcolumn > .bar > .fill{background-color:currentColor}@container (height > max(1px,.0625rem)){.rating-histogram .chart .barcolumn > .bar > .fill{--border-radius:min(100cqh - max(1px, .0625rem), var(--bar-border-radius));border-top-right-radius:var(--border-radius);border-top-left-radius:var(--border-radius)}}.rating-histogram .chart > .plot{gap:var(--border-width-thin)}@container chart (width >= 10rem){.rating-histogram .chart > .plot{aspect-ratio:var(--aspect-ratio)}}.rating-histogram .averagerating{font-family:var(--font-stack-graphik);font-size:var(--average-rating-font-size);font-weight:300;text-box-trim:trim-both;text-box-edge:cap alphabetic}.rating-histogram .averagerating:-moz-any-link{-moz-transition-property:color;transition-property:color;transition-duration:var(--transition-duration, var(--timing-duration-out));transition-timing-function:var(--easing-default);color:var(--theme-metadata-high-contrast-content-color)}.rating-histogram .averagerating:any-link{transition-property:color;transition-duration:var(--transition-duration, var(--timing-duration-out));transition-timing-function:var(--easing-default);color:var(--theme-metadata-high-contrast-content-color)}@media(hover:hover)and (pointer:fine){.rating-histogram .averagerating:-moz-any-link:hover{--transition-duration:var(--timing-duration-in);color:var(--theme-body-link-hover-content-color)}.rating-histogram .averagerating:any-link:hover{--transition-duration:var(--timing-duration-in);color:var(--theme-body-link-hover-content-color)}}.rating-histogram .averagerating:-moz-any-link:focus{--transition-duration:var(--timing-duration-in);color:var(--theme-body-link-hover-content-color)}.rating-histogram .averagerating:any-link:focus{--transition-duration:var(--timing-duration-in);color:var(--theme-body-link-hover-content-color)}.rating-histogram .averagerating:-moz-any-link:focus-visible{outline:var(--focus-outline)}.rating-histogram .averagerating:any-link:focus-visible{outline:var(--focus-outline)}.rating-histogram .averagerating:-moz-any-link:active{--transition-duration:0;color:var(--theme-body-link-active-content-color)}.rating-histogram .averagerating:any-link:active{--transition-duration:0;color:var(--theme-body-link-active-content-color)}.rating-histogram > .layout{display:grid;align-items:end;grid-template-areas:"stars-start chart average" "stars-start chart stars-end";grid-template-columns:[rating-start] auto 1fr auto;grid-template-rows:[rating-start] 1fr [average-end] auto [rating-end]}.rating-histogram > .layout > .stars.-start{grid-area:stars-start}.rating-histogram > .layout > .stars.-end{grid-area:stars-end}.rating-histogram > .layout > .chart{grid-area:chart}.rating-histogram > .layout > .averagerating{grid-area:average;align-self:start;justify-self:center}.rating-histogram > .layout:has( > .averagerating),.rating-histogram > .layout:has( > .stars){-moz-column-gap:max(var(--spacing-dense-large),calc(100cqw * (var(--_column-gap-unitless) / var(--_base-width-unitless))));column-gap:max(var(--spacing-dense-large),calc(100cqw * (var(--_column-gap-unitless) / var(--_base-width-unitless))))}.rating-histogram > .layout:has( > .averagerating){--_column-gap-unitless:var(--spacing-dense-large-unitless)}.rating-histogram > .layout:has( > .stars){--_column-gap-unitless:var(--spacing-dense-medium-unitless)}.rating-histogram > .layout:not(:has( > .stars)) > .chart{grid-column-start:rating-start}.rating-histogram > .layout:not(:has( > .stars)) > .averagerating{align-self:end;grid-row-end:rating-end}.rating-histogram.-compact{--aspect-ratio:calc(120 / 22)}.rating-histogram.-compact .chart{min-height:1.375rem}@container chart (width >= 7.5rem){.rating-histogram.-compact .chart > .plot{aspect-ratio:var(--aspect-ratio)}}._sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 
 
 </style>`
@@ -778,7 +620,7 @@ function showMovieRating (response, letterboxdUrl, otherData) {
   }
 
   // Footer
-  const sub = $('<div class="footer"></div>').appendTo(div)
+  const sub = $('<div class="mcdiv321footer"></div>').appendTo(div)
   $('<span style="color:#789; font-size: 11px">' + identName + identOriginalName + identYear + identDirector + '</span>').appendTo(sub)
   $('<br>').appendTo(sub)
   $('<time style="color:#789; font-size: 11px;" datetime="' + time + '" title="' + time.toLocaleTimeString() + ' ' + time.toLocaleDateString() + '">' + minutesSince(time) + '</time>').appendTo(sub)
